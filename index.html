@@ -113,6 +113,19 @@ tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:0}
 .lcard{background:var(--card);color:var(--ink);border-radius:18px;padding:28px;width:min(100%,400px);display:grid;gap:14px;box-shadow:0 20px 50px #0005}
 .lcard label{display:grid;gap:4px;font-size:14px;font-weight:600;color:var(--mut)}
 .lcard h2{font-size:26px}.lcard .bname{color:var(--g)}
+input:disabled,select:disabled,button:disabled{opacity:.55;cursor:not-allowed}
+.who{font-size:13px;color:#fff;background:#ffffff1f;border-radius:99px;padding:4px 12px;white-space:nowrap}
+.who:empty{display:none}
+.ufields{display:grid;gap:12px}.ufields label{display:grid;gap:4px;font-size:14px;font-weight:600;color:var(--mut)}
+.rol{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;font-weight:700;white-space:nowrap}
+.rol.admin{background:var(--g);color:#fff}.rol.editor{background:var(--okb);color:var(--ok)}.rol.lector{background:var(--soft);color:var(--mut)}
+.st{border:0;border-radius:99px;padding:4px 12px;font:700 13px Inter,sans-serif;cursor:pointer;min-height:32px}
+.st.on{background:var(--okb);color:var(--ok)}.st.off{background:var(--badb);color:var(--bad)}
+.uact{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.uact .btn{min-height:36px;padding:6px 12px;font-size:14px}
+.inl{background:var(--soft);border-radius:10px;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.inl input{flex:1 1 180px;min-height:38px}
+.perm td,.perm th{text-align:center}.perm td:first-child,.perm th:first-child{text-align:left}
+.yes{color:var(--ok);font-weight:800}.no{color:var(--mut)}
 footer{text-align:center;color:var(--mut);font-size:13px;padding:0 16px 32px}
 @media(max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.brow{grid-template-columns:minmax(0,92px) minmax(0,1fr) 52px;gap:8px}.bl{font-size:13px}.fields{grid-template-columns:minmax(0,1fr)}table{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:9em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:8.5em;margin-inline-start:-9em;white-space:normal;color:var(--mut);font-size:13px}.stack td:empty{display:none}.stack tfoot td{padding-inline-start:0}}
@@ -137,6 +150,8 @@ window.FOODCOST_CONFIG={
    <div class="brand"><div class="logo" id="logo"></div><div><div class="bname" id="bname"></div><h1>Food Cost<small>Control de costos de ventas y operaciones · <span id="btag"></span></small></h1></div></div>
    <div class="cfg">
     <span class="sync" id="sync" role="status"></span>
+    <span class="who" id="who"></span>
+    <label class="hide" id="demoAs">Ver como <select id="demoRol" style="width:auto;min-height:36px;padding:4px 8px;background:#fff;color:#15211a;border:0"><option value="admin">Administrador</option><option value="editor">Editor</option><option value="lector">Solo lectura</option></select></label>
     <button class="btn ghost" id="brandBtn" aria-expanded="false">Marca</button>
     <button class="btn ghost hide" id="logout" title="Cerrar sesión">Salir</button>
     <label for="meta">Meta de Food Cost % <input id="meta" type="number" step="0.5" min="1" max="99" inputmode="decimal"></label>
@@ -154,6 +169,7 @@ window.FOODCOST_CONFIG={
    <button role="tab" data-tab="insumos" id="t-insumos">Insumos</button>
    <button role="tab" data-tab="recetas" id="t-recetas">Recetas</button>
    <button role="tab" data-tab="ventas" id="t-ventas">Ventas y consumo real</button>
+   <button role="tab" data-tab="usuarios" id="t-usuarios" class="hide">Usuarios</button>
   </nav>
  </div>
 </header>
@@ -162,6 +178,7 @@ window.FOODCOST_CONFIG={
  <section id="p-insumos" role="tabpanel" class="hide"></section>
  <section id="p-recetas" role="tabpanel" class="hide"></section>
  <section id="p-ventas" role="tabpanel" class="hide"></section>
+ <section id="p-usuarios" role="tabpanel" class="hide"></section>
  <p class="note">Datos de ejemplo de una semana de operación. <span id="storeNote">Los cambios se guardan en este navegador.</span> <button class="btn" id="reset" style="margin-left:8px">Restaurar datos de ejemplo</button></p>
 </div></main>
 <footer id="foot"></footer>
@@ -230,11 +247,89 @@ function seed(){
  const t=consTeor(), fac={'Lomo de res':1.06,'Pescado (corvina)':1.08,'Limón':1.12,'Ají amarillo':1.05,'Trucha':1.07,'Pisco quebranta':1.06};
  insumos.forEach((i,k)=>{const c=t[i.id]||0;const ini=r1(c*.35+k%3),comp=r1(c);const f=fac[i.nombre]||(k%2?1.01:.995);S.inv[i.id]={ini,comp,fin:r1(Math.max(0,ini+comp-c*f))}});
 }
+/* ---------- usuarios y perfiles ---------- */
+const ROLES={admin:'Administrador',editor:'Editor',lector:'Solo lectura'};
+let ROLE='admin', ME={id:'local',email:'renantreehouse@gmail.com',nombre:'Renan Neira'}, US=null, uOpen=null;
+let DEMO_US=[
+ {id:'local',email:'renantreehouse@gmail.com',nombre:'Renan Neira',rol:'admin',activo:true,ultimo:new Date().toISOString()},
+ {id:'d2',email:'cocina@ejemplo.pe',nombre:'Jefe de cocina (ejemplo)',rol:'editor',activo:true,ultimo:'2026-11-19T20:15:00Z'},
+ {id:'d3',email:'compras@ejemplo.pe',nombre:'Logística (ejemplo)',rol:'editor',activo:true,ultimo:'2026-11-18T14:40:00Z'},
+ {id:'d4',email:'contabilidad@ejemplo.pe',nombre:'Contabilidad (ejemplo)',rol:'lector',activo:false,ultimo:null}];
+const okMail=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+async function api(accion,d={}){
+ if(!CLOUD){
+  await new Promise(r=>setTimeout(r,150));const u=DEMO_US.find(x=>x.id===d.id);
+  if(accion==='listar')return{usuarios:DEMO_US.map(x=>({...x}))};
+  if(accion==='crear'){if(DEMO_US.some(x=>x.email===d.email))throw new Error('Ya existe un usuario con ese correo.');DEMO_US.push({id:uid(),email:d.email,nombre:d.nombre,rol:d.rol,activo:true,ultimo:null});return{ok:true}}
+  if(accion==='actualizar'){Object.assign(u,d);return{ok:true}}
+  if(accion==='password')return{ok:true};
+  if(accion==='eliminar'){DEMO_US=DEMO_US.filter(x=>x.id!==d.id);return{ok:true}}
+ }
+ const {data,error}=await sb.functions.invoke('admin-usuarios',{body:{accion,...d}});
+ if(error){let m=error.message;try{const j=await error.context.json();m=j.error||m}catch(e){}throw new Error(m)}
+ if(data&&data.error)throw new Error(data.error);
+ return data;
+}
+const fdt=s=>s?new Date(s).toLocaleString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Nunca';
+function uMsg(id,t,c){const e=$('#'+id);if(e){e.className='msg '+(c||'ok');e.textContent=t}}
+function genPass(){const a='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';const r=new Uint32Array(12);crypto.getRandomValues(r);r.forEach(x=>s+=a[x%a.length]);return s.slice(0,4)+'-'+s.slice(4,8)+'-'+s.slice(8)}
+function rUsuarios(){
+ const el=$('#p-usuarios');if(ROLE!=='admin'){el.innerHTML='';return}
+ const P=[['Ver resumen, insumos, recetas y ventas',1,1,1],['Editar insumos, recetas, ventas e inventario',1,1,0],['Cargar Excel de insumos y ventas',1,1,0],['Cambiar meta de food cost, IGV y marca',1,1,0],['Gestionar usuarios y perfiles',1,0,0]];
+ el.innerHTML=`${CLOUD?'':'<div class="alert ok"><h2>Vista preliminar</h2><p>Estás viendo una demostración con usuarios de ejemplo. En esta vista los cambios no se guardan ni crean cuentas reales. Usa “Ver como” en el encabezado para revisar lo que ve un Editor o un usuario de Solo lectura.</p></div>'}
+ <div class="card"><h2>Usuarios</h2><p class="sub">Solo tú, como administrador, ves esta pestaña. Un usuario inactivo no puede ingresar, pero conserva su cuenta.</p><div id="uList"><p class="sub">Cargando usuarios…</p></div><p class="msg" id="uMsg" style="margin-top:12px"></p></div>
+ <div class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)"><div class="card"><h2>Nuevo usuario</h2><p class="sub">La cuenta queda activa al instante, sin correo de confirmación.</p>
+  <form class="ufields" id="uNew" novalidate>
+   <label>Nombre<input id="nNom" autocomplete="off" placeholder="Ej. María Quispe"></label>
+   <label>Correo<input id="nMail" type="email" autocomplete="off" placeholder="nombre@correo.com"></label>
+   <label>Contraseña temporal<span class="row" style="gap:8px"><input id="nPass" autocomplete="new-password" style="flex:1 1 160px" placeholder="Mínimo 8 caracteres"><button type="button" class="btn" data-u="gen">Generar</button></span></label>
+   <label>Perfil<select id="nRol"><option value="editor">Editor</option><option value="lector">Solo lectura</option></select></label>
+   <button class="btn pri" type="submit" id="nBtn">Crear usuario</button>
+   <p class="msg" id="nMsg"></p>
+  </form><p class="note">Entrega la contraseña temporal por un canal privado (en persona o por mensaje directo). Si la olvidan, puedes asignarles una nueva desde la lista.</p></div>
+ <div class="card"><h2>Perfiles y permisos</h2><p class="sub">Solo existe un administrador. A los demás usuarios les asignas Editor o Solo lectura.</p>
+ <div class="scroll"><table class="perm" style="min-width:440px"><thead><tr><th>Permiso</th><th><span class="rol admin">Administrador</span></th><th><span class="rol editor">Editor</span></th><th><span class="rol lector">Solo lectura</span></th></tr></thead><tbody>
+ ${P.map(([t,...v])=>`<tr><td>${t}</td>${v.map(x=>`<td class="${x?'yes':'no'}">${x?'✓':'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div></div>`;
+ loadUsers();
+}
+async function loadUsers(){try{US=(await api('listar')).usuarios;drawUsers()}catch(e){const l=$('#uList');if(l)l.innerHTML='';uMsg('uMsg',e.message,'bad')}}
+function drawUsers(){
+ const l=$('#uList');if(!l)return;
+ l.innerHTML=`<table class="stack"><thead><tr><th>Usuario</th><th>Perfil</th><th>Estado</th><th>Último ingreso</th><th class="n">Acciones</th></tr></thead><tbody>
+ ${US.map(u=>{const self=u.id===ME.id||u.rol==='admin';return`<tr><td><b>${esc(u.nombre||u.email)}</b>${u.id===ME.id?' <small class="note">(tú)</small>':''}<br><small style="color:var(--mut)">${esc(u.email)}</small></td>
+ <td>${self?`<span class="rol ${u.rol}">${ROLES[u.rol]}</span>`:`<select data-u="rol" data-id="${u.id}" aria-label="Perfil de ${esc(u.email)}" style="width:auto">${['editor','lector'].map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${ROLES[r]}</option>`).join('')}</select>`}</td>
+ <td>${self?'<span class="st on" style="cursor:default">Activo</span>':`<button class="st ${u.activo?'on':'off'}" data-u="act" data-id="${u.id}" title="${u.activo?'Desactivar':'Activar'}">${u.activo?'Activo':'Inactivo'}</button>`}</td>
+ <td style="white-space:nowrap">${fdt(u.ultimo)}</td>
+ <td><div class="uact"><button class="btn" data-u="pw" data-id="${u.id}">Contraseña</button>${self?'':`<button class="btn" data-u="del" data-id="${u.id}" style="color:var(--bad)">Eliminar</button>`}</div>
+ ${uOpen&&uOpen.id===u.id?(uOpen.k==='pw'?`<div class="inl"><input id="pwNew" placeholder="Nueva contraseña (mín. 8)" autocomplete="new-password"><button class="btn" data-u="pwGen">Generar</button><button class="btn pri" data-u="pwOk" data-id="${u.id}">Guardar</button><button class="btn" data-u="x">Cancelar</button></div>`:`<div class="inl"><span>¿Eliminar a <b>${esc(u.email)}</b>? No se puede deshacer.</span><button class="btn" data-u="delOk" data-id="${u.id}" style="background:var(--bad);color:#fff;border-color:var(--bad)">Sí, eliminar</button><button class="btn" data-u="x">Cancelar</button></div>`):''}</td></tr>`}).join('')}
+ </tbody></table>`;
+}
+async function uAction(b){
+ const k=b.dataset.u,id=b.dataset.id,u=US&&US.find(x=>x.id===id);
+ if(k==='gen'){$('#nPass').value=genPass();return}
+ if(k==='pwGen'){$('#pwNew').value=genPass();return}
+ if(k==='x'){uOpen=null;return drawUsers()}
+ if(k==='pw'||k==='del'){uOpen={id,k};drawUsers();if(k==='pw')$('#pwNew')?.focus();return}
+ b.disabled=true;
+ try{
+  if(k==='act'){await api('actualizar',{id,activo:!u.activo});u.activo=!u.activo;uMsg('uMsg',`${u.email} ahora está ${u.activo?'activo':'inactivo'}.`)}
+  if(k==='pwOk'){const p=$('#pwNew').value;if(p.length<8)throw new Error('La contraseña debe tener al menos 8 caracteres.');await api('password',{id,password:p});uOpen=null;uMsg('uMsg',`Contraseña de ${u.email} actualizada. Compártela por un canal privado.`)}
+  if(k==='delOk'){await api('eliminar',{id});US=US.filter(x=>x.id!==id);uOpen=null;uMsg('uMsg',`Usuario ${u.email} eliminado.`)}
+  drawUsers();
+ }catch(e){b.disabled=false;uMsg('uMsg',e.message,'bad')}
+}
+function applyRO(){
+ const ro=ROLE==='lector';
+ ['#meta','#igv','#reset','#brandBtn'].forEach(s=>{const e=$(s);if(e)e.disabled=ro});
+ if(ro){$('#brandPanel').classList.add('hide');document.querySelectorAll('main input,main select,main button[data-a]').forEach(e=>e.disabled=true);document.querySelectorAll('.imp').forEach(e=>e.style.display='none')}
+}
+
 /* ---------- almacenamiento: Supabase o local ---------- */
 const CFG=window.FOODCOST_CONFIG||{}, CLOUD=!!(CFG.supabaseUrl&&CFG.supabaseKey), RID=CFG.restaurante||'sagrado';
 let sb=null, saveT=null;
 function status(t,c){const e=$('#sync');e.textContent=t;e.className='sync '+(c||'')}
 function save(){
+ if(ROLE==='lector')return;
  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
  if(CLOUD&&sb){clearTimeout(saveT);status('Guardando…');saveT=setTimeout(pushCloud,800)}
 }
@@ -247,16 +342,26 @@ async function pushCloud(){
 function showLogin(msg){$('#login').classList.remove('hide');const m=$('#lMsg');m.className=msg?'msg bad':'msg';m.textContent=msg||'';setTimeout(()=>$('#lEmail').focus(),50)}
 async function enter(user){
  status('Cargando datos…');
+ const {data:pf,error:pe}=await sb.from('perfiles').select('rol,nombre,activo').eq('id',user.id).maybeSingle();
+ if(pe)return showLogin('No se pudo leer tu perfil: '+pe.message);
+ if(!pf||!pf.activo){await sb.auth.signOut();return showLogin('Tu usuario no tiene un perfil activo. Pide acceso al administrador.')}
+ ROLE=pf.rol;ME={id:user.id,email:user.email,nombre:pf.nombre||user.email};
  const {data,error}=await sb.from('foodcost_datos').select('datos').eq('restaurante',RID).maybeSingle();
  if(error)return showLogin('No se pudo leer la base de datos: '+error.message);
- if(data&&data.datos&&data.datos.insumos){S=data.datos;S.brand={...BRAND,...(S.brand||{})}}else{seed();await pushCloud()}
+ if(data&&data.datos&&data.datos.insumos){S=data.datos;S.brand={...BRAND,...(S.brand||{})}}
+ else if(ROLE==='lector'){await sb.auth.signOut();return showLogin('Todavía no hay datos cargados. Pide al administrador que ingrese primero.')}
+ else{seed();await pushCloud()}
  $('#login').classList.add('hide');$('#logout').classList.remove('hide');$('#logout').title='Cerrar sesión de '+(user.email||'');
  $('#storeNote').textContent='Los cambios se guardan en Supabase y los ve todo el equipo.';
  start();if(!saveT)status('Conectado a Supabase','ok');
 }
-function start(){syncCfg();rBrand();show(location.hash.slice(1)||'resumen')}
+function start(){syncCfg();rBrand();rWho();show(location.hash.slice(1)||'resumen')}
+function rWho(){
+ $('#who').textContent=ME.nombre?`${String(ME.nombre).split(' ')[0]} · ${ROLES[ROLE]}`:'';
+ $('#t-usuarios').classList.toggle('hide',ROLE!=='admin');
+}
 async function init(){
- if(!CLOUD){load();status('Modo local (solo este navegador)');return start()}
+ if(!CLOUD){load();status('Modo local (solo este navegador)');$('#demoAs').classList.remove('hide');return start()}
  if(!window.supabase)return showLogin('No se pudo cargar la librería de Supabase. Revisa tu conexión y recarga.');
  sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey);
  const {data}=await sb.auth.getSession();
@@ -459,17 +564,17 @@ function uVentas(){
 }
 
 /* ---------- control ---------- */
-const R={resumen:rResumen,insumos:rInsumos,recetas:rRecetas,ventas:rVentas};
-const U={resumen:rResumen,insumos:uInsumos,recetas:uRecetas,ventas:uVentas};
+const R={resumen:rResumen,insumos:rInsumos,recetas:rRecetas,ventas:rVentas,usuarios:rUsuarios};
+const U={resumen:rResumen,insumos:uInsumos,recetas:uRecetas,ventas:uVentas,usuarios:()=>{}};
 function show(t){
- if(!S)return;if(!R[t])t='resumen';tab=t;
+ if(!S)return;if(!R[t]||(t==='usuarios'&&ROLE!=='admin'))t='resumen';tab=t;
  document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
  Object.keys(R).forEach(k=>$('#p-'+k).classList.toggle('hide',k!==t));
- R[t]();
+ R[t]();applyRO();
  if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);
 }
 function syncCfg(){$('#meta').value=n(S.meta);$('#igv').checked=!!S.igv}
-function changed(full){save();full?R[tab]():U[tab]()}
+function changed(full){save();full?(R[tab](),applyRO()):U[tab]()}
 function keep(msg){snap=JSON.stringify(S);$('#toastMsg').textContent=msg;$('#toast').classList.add('show');clearTimeout(tTimer);tTimer=setTimeout(()=>$('#toast').classList.remove('show'),6000)}
 
 document.addEventListener('input',e=>{
@@ -489,12 +594,15 @@ document.addEventListener('change',e=>{
  const x=e.target;
  if(x.id==='igv'){S.igv=x.checked;return changed(true)}
  if(x.id==='selRec'){S.sel=x.value;return changed(true)}
+ if(x.id==='demoRol'){ROLE=x.value;ME.nombre=x.value==='admin'?'Renan Neira':x.value==='editor'?'Jefe de cocina':'Contabilidad';rWho();return show(tab)}
+ if(x.dataset.u==='rol'){const u=US.find(q=>q.id===x.dataset.id),prev=u.rol;x.disabled=true;api('actualizar',{id:u.id,rol:x.value}).then(()=>{u.rol=x.value;uMsg('uMsg',`${u.email} ahora es ${ROLES[u.rol]}.`)}).catch(err=>{x.value=prev;uMsg('uMsg',err.message,'bad')}).finally(()=>x.disabled=false);return}
  if(x.id==='file-ins')return onFile(x,'ins');
  if(x.id==='file-ven')return onFile(x,'ven');
  if(x.id==='bL'&&x.files[0]){const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,200/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);S.brand.logo=c.toDataURL('image/png');save();rBrand()};im.src=fr.result};fr.readAsDataURL(x.files[0]);x.value='';return}
  if(x.dataset.t==='item'&&x.dataset.f==='ins'){const r=S.recetas.find(r=>r.id===S.sel);r.items[x.dataset.k].ins=x.value;changed()}
 });
 document.addEventListener('click',e=>{
+ const ub=e.target.closest('button[data-u]');if(ub){e.preventDefault();return uAction(ub)}
  const b=e.target.closest('[data-a],nav button,#reset,#undo,#brandBtn,#bLx');if(!b)return;
  if(b.dataset.tab)return show(b.dataset.tab);
  if(b.id==='brandBtn'){const p=$('#brandPanel'),o=p.classList.toggle('hide');b.setAttribute('aria-expanded',!o);if(!o)$('#bN').focus();return}
@@ -510,6 +618,17 @@ document.addEventListener('click',e=>{
  else if(a==='delRec'&&r){keep(`Receta "${r.nombre}" eliminada`);S.recetas=S.recetas.filter(x=>x.id!==r.id);delete S.ventas[r.id];S.sel=S.recetas[0]?.id;changed(true)}
  else if(a==='addItem'&&r&&S.insumos.length){r.items.push({ins:S.insumos[0].id,cant:0});changed(true);const q=document.querySelectorAll('[data-t="item"][data-f="cant"]');q[q.length-1]?.focus()}
  else if(a==='delItem'&&r){r.items.splice(+b.dataset.k,1);changed(true)}
+});
+document.addEventListener('submit',async e=>{
+ if(e.target.id!=='uNew')return;e.preventDefault();
+ const nombre=$('#nNom').value.trim(),email=$('#nMail').value.trim().toLowerCase(),password=$('#nPass').value,rol=$('#nRol').value,btn=$('#nBtn');
+ if(!nombre)return uMsg('nMsg','Escribe el nombre.','bad');
+ if(!okMail(email))return uMsg('nMsg','Escribe un correo válido.','bad');
+ if(password.length<8)return uMsg('nMsg','La contraseña debe tener al menos 8 caracteres.','bad');
+ btn.disabled=true;btn.textContent='Creando…';
+ try{await api('crear',{nombre,email,password,rol});e.target.reset();uMsg('nMsg',`Usuario creado: ${email} (${ROLES[rol]}). Entrégale su contraseña temporal.`);await loadUsers()}
+ catch(err){uMsg('nMsg',err.message,'bad')}
+ finally{btn.disabled=false;btn.textContent='Crear usuario'}
 });
 window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
 init();
