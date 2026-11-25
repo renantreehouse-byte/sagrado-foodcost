@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registro de Inventario</title>
+<script>
+/* ===== CONFIGURACIÓN SUPABASE =====
+   Si dejas los valores vacíos, la app funciona en "modo local" y guarda solo en este navegador. */
+window.INV_CONFIG={
+  supabaseUrl:'https://ofqgeeihfjesasvxmudo.supabase.co',          // https://xxxx.supabase.co
+  supabaseKey:'sb_publishable_yzg9tUOPT4OvvEf4CkETXA_iiIZODMk',          // clave publicable: sb_publishable_...
+  tienda:'sagrado'         // identificador del inventario dentro de la tabla
+};
+</script>
+
+<style>
+:root{
+  --bg:#f4f6f3; --card:#ffffff; --ink:#1d2a22; --muted:#66756b; --line:#dde3dc;
+  --brand:#1f6f4a; --brand-2:#2e8b5e; --brand-soft:#e3f1e8;
+  --mp:#dff1fb; --inner:#e2f4dc; --count:#fff6b8;
+  --na:#f6d4d1; --na-ink:#a23b33; --danger:#c0392b; --warn:#b7791f;
+  --red:#c0392b; --red-bg:#fbe3e0; --amber:#a86a05; --amber-bg:#fdf0d5; --green:#1f7a4c; --green-bg:#def3e6; --gray-bg:#eceeed;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+header{background:var(--brand);color:#fff;padding:18px 24px 0}
+header h1{margin:0;font-size:22px;letter-spacing:.2px}
+header p{margin:4px 0 12px;opacity:.85;font-size:13px}
+nav{display:flex;gap:4px;overflow-x:auto}
+nav button{background:transparent;border:0;color:#d7ecdf;border-radius:8px 8px 0 0;padding:10px 16px;font-weight:600}
+nav button:hover{background:rgba(255,255,255,.1)}
+nav button.on{background:var(--bg);color:var(--brand)}
+nav .badge[hidden]{display:none}
+nav .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;line-height:18px;text-align:center}
+main{padding:18px 24px 40px;max-width:1800px;margin:0 auto}
+.tab{display:none}.tab.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
+input,select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);min-width:0}
+input:disabled{background:#eef0ee;color:#9aa39c}
+input:focus,select:focus{outline:2px solid var(--brand-2);outline-offset:-1px;border-color:transparent}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 12px;border-radius:6px;font-weight:600;white-space:nowrap}
+button:hover{background:#f0f3ef}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button.primary:hover{background:var(--brand-2)}
+button.danger{color:var(--danger)}
+button.small{padding:4px 8px;font-size:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
+.kpi .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.kpi.red .v{color:var(--red)} .kpi.amber .v{color:var(--amber)}
+.kpi.click{cursor:pointer}.kpi.click:hover{border-color:var(--brand-2)}
+.progress{height:6px;background:var(--line);border-radius:4px;margin-top:8px;overflow:hidden}
+.progress>div{height:100%;background:var(--brand-2);width:0;transition:width .3s}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:flex-end}
+.toolbar .group{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:var(--shadow);max-height:70vh}
+table{border-collapse:collapse;width:100%}
+table.wide{min-width:2100px}
+th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:middle}
+th{position:sticky;top:0;background:#e7f1e9;font-size:12px;z-index:1;line-height:1.25}
+th.mp{background:var(--mp)} th.inner{background:var(--inner)} th.count{background:var(--count)} th.ctl{background:#ece6f7}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.na{background:var(--na);color:var(--na-ink);font-weight:700;font-size:12px;text-align:center}
+td.cnt{background:#fffbe0}
+td input.q{width:80px;text-align:right;padding:5px 6px}
+td.total{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+tr.pend td.total{color:var(--warn)}
+tfoot td{font-weight:700;background:#f3f6f2;position:sticky;bottom:0}
+.pend-tag{display:block;font-size:10px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.3px}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:var(--brand-soft);color:var(--brand);white-space:nowrap}
+.tag.DIARIO{background:#fde7d3;color:#a0521d}
+.tag.QUINCENAL{background:#e8e3fb;color:#5a45b0}
+.tag.MENSUAL{background:#e1ecfb;color:#2c5ea8}
+.st{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.st::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.st.red{background:var(--red-bg);color:var(--red)} .st.amber{background:var(--amber-bg);color:var(--amber)}
+.st.green{background:var(--green-bg);color:var(--green)} .st.gray{background:var(--gray-bg);color:var(--muted)}
+.pos{color:var(--green)} .neg{color:var(--red)}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.actions{display:flex;gap:4px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:1000px){.two{grid-template-columns:1fr}}
+.modal-bg{position:fixed;inset:0;background:rgba(15,25,20,.45);display:none;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:10}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:860px;width:100%;padding:18px 20px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.modal h2{margin:0 0 12px;font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+fieldset{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:12px 0 0}
+fieldset legend{font-weight:700;font-size:12px;padding:0 6px}
+fieldset.mp{background:#f3fafd} fieldset.inner{background:#f5fbf3} fieldset.count{background:#fffdf0} fieldset.ctl{background:#f8f5fd}
+.chk{flex-direction:row;align-items:center;gap:6px;color:var(--ink)}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+@media (max-width:700px){main{padding:12px}header{padding:14px 16px 0}}
+@media print{header,.toolbar,.no-print,.actions,nav{display:none!important}.table-wrap{max-height:none;box-shadow:none}}
+[hidden]{display:none!important}
+.hbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.hacc{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.sync{font-size:12px;color:#d7ecdf;display:flex;align-items:center;gap:6px}
+.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:#9fb3a7}
+.sync.ok::before{background:#4cc47f}.sync.bad::before{background:#ff7466}.sync.bad{color:#ffd2cc}
+.who{font-size:12px;color:#fff;background:rgba(255,255,255,.15);border-radius:99px;padding:3px 10px;white-space:nowrap}.who:empty{display:none}
+header .ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.4);padding:5px 12px}
+header .ghost:hover{background:rgba(255,255,255,.12)}
+.login{position:fixed;inset:0;z-index:30;background:var(--brand);display:grid;place-items:center;padding:16px}
+.lcard{background:#fff;border-radius:14px;padding:26px;width:min(100%,380px);display:grid;gap:12px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.lcard h2{margin:0;font-size:22px}.lcard .sub{margin:4px 0 0;color:var(--muted);font-size:13px}
+.lcard input{padding:10px;font-size:15px}.lcard button{padding:10px}
+.msg{font-size:13px;border-radius:8px;padding:8px 10px;margin:0}.msg:empty{display:none}
+.msg.ok{background:var(--green-bg);color:var(--green)}.msg.bad{background:var(--red-bg);color:var(--red)}
+.ufields{display:grid;gap:10px}
+.rol{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+.rol.admin{background:var(--brand);color:#fff}.rol.editor{background:var(--green-bg);color:var(--green)}.rol.lector{background:var(--gray-bg);color:var(--muted)}
+.sbtn.on{background:var(--green-bg);color:var(--green);border-color:transparent}.sbtn.off{background:var(--red-bg);color:var(--red);border-color:transparent}
+.inl{background:#f3f6f2;border-radius:8px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}.inl input{flex:1 1 160px}
+table.perm td,table.perm th{text-align:center}table.perm td:first-child,table.perm th:first-child{text-align:left}
+.yes{color:var(--green);font-weight:800}.no{color:var(--muted)}
+button:disabled,input:disabled,select:disabled{opacity:.6;cursor:not-allowed}
+.ro #btnNuevo,.ro #btnCargar,.ro #btnGuardarConteo,.ro #btnLimpiar,.ro #btnPedRecibir,.ro [data-edit],.ro [data-del],.ro [data-delmov],.ro [data-dh],.ro #tab-kardex>section.card:first-child{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="hbar"><div><h1>Registro de Inventario</h1>
+  <p>Conteo por Master Pack, Inner Pack y saldos · control de stock, costos, vencimientos y compras</p></div>
+  <div class="hacc"><span class="sync" id="sync" role="status"></span><span class="who" id="who"></span><a href="../" class="ghost" style="color:#fff;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.4);border-radius:6px;padding:5px 12px" id="lnkFC" hidden>Food Cost</a><button class="ghost" id="logout" hidden>Salir</button></div></div>
+  <nav id="nav">
+    <button data-tab="conteo" class="on">Conteo</button>
+    <button data-tab="alertas">Alertas<span class="badge" id="bAlert" hidden></span></button>
+    <button data-tab="kardex">Entradas y salidas</button>
+    <button data-tab="historial">Historial de conteos</button>
+    <button data-tab="pedido">Pedido de compra<span class="badge" id="bPed" hidden></span></button>
+    <button data-tab="usuarios" id="tUsuarios" hidden>Usuarios</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Datos generales -->
+  <section class="card">
+    <div class="row">
+      <label>Tienda <input id="hTienda" value="1" style="width:90px"></label>
+      <label>Fecha de conteo <input id="hFecha" type="date"></label>
+      <label style="flex:1;min-width:200px">Responsable <input id="hResp" placeholder="Nombre de quien cuenta"></label>
+      <label>Frecuencia a contar <select id="hFrec"><option value="">Todas</option></select></label>
+    </div>
+  </section>
+
+  <section class="kpis">
+    <div class="kpi"><div class="l">Insumos en lista</div><div class="v" id="kItems">0</div></div>
+    <div class="kpi"><div class="l">Contados</div><div class="v" id="kDone">0</div><div class="progress"><div id="kBar"></div></div></div>
+    <div class="kpi"><div class="l">Pendientes de conteo</div><div class="v" id="kPend">0</div></div>
+    <div class="kpi"><div class="l">Valor del inventario</div><div class="v" id="kVal">S/ 0.00</div></div>
+    <div class="kpi red click" data-go="alertas"><div class="l">Bajo stock mínimo</div><div class="v" id="kMin">0</div></div>
+    <div class="kpi amber click" data-go="alertas"><div class="l">Vencidos / por vencer</div><div class="v" id="kVen">0</div></div>
+  </section>
+
+  <!-- TAB CONTEO -->
+  <div class="tab on" id="tab-conteo">
+    <section class="card">
+      <div class="toolbar">
+        <div class="group">
+          <label>Buscar <input id="fBuscar" placeholder="Código o insumo"></label>
+          <label>Categoría <select id="fCat"><option value="">Todas</option></select></label>
+          <label>Almacenamiento <select id="fAlm"><option value="">Todos</option></select></label>
+          <label>Estado
+            <select id="fEstado"><option value="">Todos</option><option value="pend">Pendientes de conteo</option><option value="ok">Contados</option><option value="red">Reponer</option><option value="amber">Cerca del mínimo</option><option value="venc">Vencidos / por vencer</option></select>
+          </label>
+        </div>
+        <div class="group">
+          <button class="primary" id="btnNuevo">+ Agregar insumo</button>
+          <button id="btnCargar">Cargar CSV / Excel</button>
+          <input type="file" id="fileIn" accept=".csv,.xlsx,.xls" hidden>
+          <button id="btnCsv">Exportar CSV</button>
+          <button id="btnXlsx">Exportar Excel</button>
+          <button id="btnWa">Enviar por WhatsApp</button>
+          <button id="btnMail">Enviar por correo</button>
+          <button class="primary" id="btnGuardarConteo" title="Guarda una foto del conteo en el historial">Guardar conteo en historial</button>
+          <button id="btnLimpiar" class="danger">Reiniciar conteo</button>
+        </div>
+      </div>
+    </section>
+    <div class="table-wrap">
+      <table class="wide">
+        <thead>
+          <tr>
+            <th>Tienda</th><th>Frec.</th><th>Almacena&shy;miento</th><th>Categoría</th><th>Cod. Ins</th><th>Insumo</th>
+            <th class="mp">Cantidad MP</th><th class="mp">Descripción Master Pack</th>
+            <th class="inner">Cantidad Inner Pack</th><th class="inner">Descripción Inner Pack</th>
+            <th class="count">Conteo Unidades / Saldos</th><th>Unidad Medida Saldos</th>
+            <th>TOTAL INVENTARIO</th><th>Unidad de Medida Base</th>
+            <th class="ctl num">Stock teórico</th><th class="ctl num">Diferencia</th>
+            <th class="ctl num">Stock mín.</th><th class="ctl">Estado stock</th>
+            <th class="ctl num">Costo unit. (S/)</th><th class="ctl num">Valor (S/)</th>
+            <th class="ctl">Vencimiento</th><th class="no-print">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot><tr><td colspan="19" style="text-align:right">Valor total del inventario mostrado</td><td class="num" id="footVal"></td><td colspan="2"></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="hint">Total = (Cantidad MP × contenido MP) + (Cantidad Inner × contenido Inner) + (Saldos × unidad de saldos). Stock teórico = último conteo guardado + entradas − salidas − mermas registradas después. Diferencia = Total contado − Stock teórico (negativo = consumo o faltante no registrado). Valor = Total × costo unitario.</p>
+  </div>
+
+  <!-- TAB ALERTAS -->
+  <div class="tab" id="tab-alertas">
+    <div class="two">
+      <section class="card">
+        <h3>Stock por debajo o cerca del mínimo</h3>
+        <div class="table-wrap" style="max-height:none"><table>
+          <thead><tr><th>Insumo</th><th class="num">Stock actual</th><th class="num">Mínimo</th><th class="num">Faltante</th><th>Estado</th></tr></thead>
+          <tbody id="tbAlMin"></tbody></table></div>
+        <div class="row" style="margin-top:10px"><button class="primary" data-go="pedido">Ir al pedido de compra →</button></div>
+      </section>
+      <section class="card">
+        <h3>Vencimientos</h3>
+        <div class="row" style="margin-bottom:10px"><label>Avisar con anticipación de (días) <input id="diasAlerta" type="number" min="1" value="7" style="width:100px"></label></div>
+        <div class="table-wrap" style="max-height:none"><table>
+          <thead><tr><th>Insumo</th><th>Vence</th><th class="num">Días</th><th class="num">Stock</th><th class="num">Valor en riesgo</th><th>Estado</th></tr></thead>
+          <tbody id="tbAlVen"></tbody></table></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- TAB KARDEX -->
+  <div class="tab" id="tab-kardex">
+    <section class="card">
+      <h3>Registrar movimiento</h3>
+      <form id="fMov" class="row" autocomplete="off">
+        <label>Fecha <input name="fecha" type="date" required></label>
+        <label>Tipo
+          <select name="tipo"><option value="ENTRADA">Entrada (compra / recepción)</option><option value="SALIDA">Salida (consumo / traslado)</option><option value="MERMA">Merma (pérdida / vencido)</option></select>
+        </label>
+        <label style="min-width:240px;flex:1">Insumo <select name="cod" required></select></label>
+        <label>Cantidad <input name="cant" type="number" step="any" min="0" required style="width:110px"></label>
+        <label>Presentación <select name="pres" style="min-width:170px"></select></label>
+        <label class="entOnly">Costo unit. S/ (por unidad base) <input name="costo" type="number" step="any" min="0" style="width:150px" placeholder="opcional"></label>
+        <label class="entOnly">Vence <input name="venc" type="date"></label>
+        <label style="min-width:180px;flex:1">Documento / nota <input name="nota" placeholder="Guía, factura, motivo…"></label>
+        <button class="primary" type="submit">Registrar</button>
+      </form>
+      <p class="hint" id="movPrev">La cantidad se convierte a la unidad de medida base del insumo.</p>
+    </section>
+    <section class="card">
+      <div class="toolbar">
+        <div class="group">
+          <label>Filtrar insumo <select id="kxCod"><option value="">Todos</option></select></label>
+          <label>Tipo <select id="kxTipo"><option value="">Todos</option><option>ENTRADA</option><option>SALIDA</option><option>MERMA</option></select></label>
+        </div>
+        <div class="group"><button id="btnKxXlsx">Exportar kardex a Excel</button></div>
+      </div>
+    </section>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Tipo</th><th>Cod.</th><th>Insumo</th><th class="num">Cantidad</th><th>Presentación</th><th class="num">Cant. unidad base</th><th>U. base</th><th class="num">Costo unit.</th><th class="num">Valor (S/)</th><th>Documento / nota</th><th class="no-print"></th></tr></thead>
+        <tbody id="tbKx"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB HISTORIAL -->
+  <div class="tab" id="tab-historial">
+    <section class="card">
+      <h3>Conteos guardados</h3>
+      <div class="table-wrap" style="max-height:320px"><table>
+        <thead><tr><th>Fecha</th><th>Tienda</th><th>Responsable</th><th class="num">Insumos</th><th class="num">Valor (S/)</th><th class="no-print">Acciones</th></tr></thead>
+        <tbody id="tbHist"></tbody></table></div>
+      <p class="hint">Usa “Guardar conteo en historial” en la pestaña Conteo cada vez que termines de contar.</p>
+    </section>
+    <section class="card">
+      <h3>Comparar conteos y calcular consumo</h3>
+      <div class="row">
+        <label>Desde (conteo inicial) <select id="cmpA" style="min-width:220px"></select></label>
+        <label>Hasta (conteo final) <select id="cmpB" style="min-width:220px"></select></label>
+        <button id="btnCmpXlsx">Exportar comparación a Excel</button>
+      </div>
+      <p class="hint">Consumo = Stock inicial + Entradas − Salidas − Mermas − Stock final.</p>
+    </section>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cod.</th><th>Insumo</th><th>U. base</th><th class="num">Stock inicial</th><th class="num">Entradas</th><th class="num">Salidas</th><th class="num">Mermas</th><th class="num">Stock final</th><th class="num">Consumo</th><th class="num">Valor consumo (S/)</th></tr></thead>
+        <tbody id="tbCmp"></tbody>
+        <tfoot><tr><td colspan="9" style="text-align:right">Valor total consumido</td><td class="num" id="footCmp"></td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB USUARIOS -->
+  <div class="tab" id="tab-usuarios"></div>
+
+  <!-- TAB PEDIDO -->
+  <div class="tab" id="tab-pedido">
+    <section class="card">
+      <div class="toolbar">
+        <div class="group">
+          <label class="chk"><input type="checkbox" id="pedAmber"> Incluir insumos cerca del mínimo</label>
+        </div>
+        <div class="group">
+          <button id="btnPedXlsx">Exportar pedido a Excel</button>
+          <button id="btnPedCsv">Exportar CSV</button>
+          <button id="btnPedWa">Enviar por WhatsApp</button>
+          <button class="primary" id="btnPedRecibir" title="Registra todo el pedido como entradas en el kardex">Marcar pedido como recibido</button>
+        </div>
+      </div>
+      <p class="hint">Cantidad sugerida = Stock máximo − Stock actual, redondeada a la presentación de compra (Master Pack, si no Inner Pack). Puedes ajustar la cantidad a pedir. Stock actual = último conteo físico + entradas − salidas registradas después de contar (si el insumo no fue contado, se usa su stock teórico).</p>
+    </section>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cod.</th><th>Insumo</th><th>Estado</th><th class="num">Stock actual</th><th class="num">Mínimo</th><th class="num">Máximo</th><th class="num">Necesario</th><th class="num">Pedir</th><th>Presentación</th><th class="num">Equivale a</th><th class="num">Costo unit.</th><th class="num">Costo estimado (S/)</th></tr></thead>
+        <tbody id="tbPed"></tbody>
+        <tfoot><tr><td colspan="11" style="text-align:right">Total estimado del pedido</td><td class="num" id="footPed"></td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Modal insumo -->
+<div class="modal-bg" id="modalBg">
+  <form class="modal" id="form" autocomplete="off">
+    <h2 id="mTitle">Agregar insumo</h2>
+    <div class="grid">
+      <label>Código insumo * <input name="cod" required placeholder="IN0001"></label>
+      <label style="grid-column:span 2">Insumo * <input name="insumo" required placeholder="Nombre del insumo"></label>
+      <label>Tienda <input name="tienda" value="1"></label>
+      <label>Frecuencia * <select name="frec" required></select></label>
+      <label>Almacenamiento * <select name="alm" required></select></label>
+      <label>Categoría * <input name="cat" list="dlCat" required placeholder="Ej. Bebidas"></label>
+      <label>Unidad de medida base * <select name="umb" required></select></label>
+    </div>
+    <datalist id="dlCat"></datalist>
+    <fieldset class="mp">
+      <legend>Master Pack (caja / paquete grande)</legend>
+      <div class="row">
+        <label class="chk"><input type="checkbox" name="mpOn"> Aplica</label>
+        <label style="flex:1;min-width:180px">Descripción <input name="mpDesc" placeholder="Caja x 20 litros"></label>
+        <label>Contenido en unidad base <input name="mpFac" type="number" step="any" min="0" placeholder="20" style="width:140px"></label>
+      </div>
+    </fieldset>
+    <fieldset class="inner">
+      <legend>Inner Pack (empaque interno)</legend>
+      <div class="row">
+        <label class="chk"><input type="checkbox" name="inOn"> Aplica</label>
+        <label style="flex:1;min-width:180px">Descripción <input name="inDesc" placeholder="Galón x 5 litros"></label>
+        <label>Contenido en unidad base <input name="inFac" type="number" step="any" min="0" placeholder="5" style="width:140px"></label>
+      </div>
+    </fieldset>
+    <fieldset class="count">
+      <legend>Saldos (unidades sueltas)</legend>
+      <div class="row"><label>Unidad medida saldos <input name="saldoFac" type="number" step="any" min="0" value="1" style="width:140px"></label></div>
+    </fieldset>
+    <fieldset class="ctl">
+      <legend>Control de stock, costo y vencimiento</legend>
+      <div class="row">
+        <label>Stock mínimo (unid. base) <input name="min" type="number" step="any" min="0" value="0" style="width:150px"></label>
+        <label>Stock máximo (unid. base) <input name="max" type="number" step="any" min="0" value="0" style="width:150px"></label>
+        <label>Costo unitario S/ (por unid. base) <input name="costo" type="number" step="any" min="0" value="0" style="width:170px"></label>
+        <label>Fecha de vencimiento <input name="venc" type="date"></label>
+      </div>
+      <div class="hint">Si el stock baja del mínimo, el insumo pasa a “Reponer” y aparece en el pedido de compra, que sugiere comprar hasta el máximo.</div>
+    </fieldset>
+    <div class="foot">
+      <button type="button" id="btnCancel">Cancelar</button>
+      <button type="submit" class="primary">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<div class="login" id="login" hidden><form class="lcard" id="loginForm">
+  <div><h2>Registro de Inventario</h2><p class="sub">Ingresa con el mismo usuario de Food Cost.</p></div>
+  <label>Correo<input type="email" id="lEmail" autocomplete="username" required></label>
+  <label>Contraseña<input type="password" id="lPass" autocomplete="current-password" required></label>
+  <button class="primary" type="submit" id="lBtn">Ingresar</button>
+  <p class="msg" id="lMsg"></p>
+</form></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
+<script>
+(function(){
+"use strict";
+const FRECUENCIAS=["DIARIO","SEM","QUINCENAL","MENSUAL"];
+const FREC_LABEL={DIARIO:"Diario",SEM:"Semanal",QUINCENAL:"Quincenal",MENSUAL:"Mensual"};
+const ALMACENES=["SECOS","REFRIGERADO","CONGELADO"];
+const UNIDADES=["UNIDAD","LITRO","KILOS","GRAMOS","MILILITROS"];
+const KEY="inventario_mvp_v3";
+const $=id=>document.getElementById(id);
+
+/* ---------- fechas ---------- */
+const iso=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10);};
+const today=()=>iso(new Date());
+const addDays=n=>{const d=new Date();d.setDate(d.getDate()+n);return iso(d);};
+const daysTo=s=>Math.round((new Date(s+"T00:00:00")-new Date(today()+"T00:00:00"))/86400000);
+const fmtDate=s=>s?s.split("-").reverse().join("/"):"";
+
+/* ---------- datos de ejemplo ---------- */
+const SEED=[
+ {tienda:"1",frec:"DIARIO",alm:"SECOS",cat:"Freidora",cod:"IN0002",insumo:"ACEITE FRITURA",mpDesc:"Caja x 20 litros",mpFac:20,inDesc:"Galon x 5 Litros",inFac:5,saldoFac:1,umb:"LITRO",qMp:7,qIn:null,qCnt:null,min:60,max:160,costo:8.5,venc:addDays(140)},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Freidora",cod:"RE0101",insumo:"ACEITE FRITURA EN CUBAS",mpDesc:"",mpFac:null,inDesc:"",inFac:null,saldoFac:1,umb:"LITRO",qMp:null,qIn:null,qCnt:60,min:40,max:100,costo:8.5,venc:addDays(4)},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Higiene y Limpieza",cod:"IN0057",insumo:"ACTIGEL (GALON)",mpDesc:"Galon",mpFac:1,inDesc:"",inFac:null,saldoFac:1,umb:"UNIDAD",qMp:4,qIn:null,qCnt:null,min:2,max:6,costo:25,venc:addDays(400)},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Bebidas",cod:"IN0004",insumo:"AGUA SAN LUIS 750 ML",mpDesc:"Paquete x 15 und",mpFac:15,inDesc:"",inFac:null,saldoFac:1,umb:"UNIDAD",qMp:2,qIn:null,qCnt:15,min:30,max:90,costo:1.2,venc:addDays(220)},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Bebidas",cod:"IN0005",insumo:"AGUA SAN LUIS CON GAS 625 ML",mpDesc:"Paquete x 15 und",mpFac:15,inDesc:"",inFac:null,saldoFac:1,umb:"UNIDAD",qMp:null,qIn:null,qCnt:8,min:30,max:60,costo:1.5,venc:addDays(180)},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Abarrotes",cod:"IN0007",insumo:"AJO EN POLVO (KILO)",mpDesc:"Paquete x 1 Kg",mpFac:1,inDesc:"",inFac:null,saldoFac:1,umb:"KILOS",qMp:null,qIn:null,qCnt:0.72,min:1,max:3,costo:28,venc:addDays(6)},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Abarrotes",cod:"IN0010",insumo:"AZUCAR BLANCA (KILO)",mpDesc:"",mpFac:null,inDesc:"Bolsa x 1 kg",inFac:1,saldoFac:1,umb:"KILOS",qMp:null,qIn:null,qCnt:null,min:15,max:40,costo:3.8,venc:addDays(300)},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Empaques y Menaje",cod:"IN0013",insumo:"BANDEJA MEDIANA KRAFT",mpDesc:"Paquete x 400 und",mpFac:400,inDesc:"Fajo x 100 und",inFac:100,saldoFac:1,umb:"UNIDAD",qMp:null,qIn:null,qCnt:350,min:300,max:1200,costo:0.35,venc:""},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Empaques y Menaje",cod:"IN0166",insumo:"BANDEJA REGULAR AMARILLA",mpDesc:"Paquete x 100 und",mpFac:100,inDesc:"",inFac:null,saldoFac:1,umb:"UNIDAD",qMp:6,qIn:null,qCnt:14,min:300,max:1000,costo:0.25,venc:""},
+ {tienda:"1",frec:"SEM",alm:"SECOS",cat:"Masas",cod:"RE0034",insumo:"BATTER (AGUA + REBOZADOR)",mpDesc:"",mpFac:null,inDesc:"",inFac:null,saldoFac:1,umb:"KILOS",qMp:null,qIn:null,qCnt:5.45,min:3,max:10,costo:6,venc:addDays(-1)}
+];
+function seedHistory(){
+  const f=addDays(-7), ts=new Date(f+"T18:00:00").getTime();
+  const prev={IN0002:180,RE0101:80,IN0057:6,IN0004:75,IN0005:30,IN0007:1.5,IN0010:12,IN0013:600,IN0166:900,RE0034:8};
+  hist=[{id:"h"+ts,fecha:f,ts,tienda:"1",resp:"Conteo anterior (ejemplo)",items:items.map(it=>({cod:it.cod,insumo:it.insumo,umb:it.umb,cat:it.cat,costo:it.costo,total:prev[it.cod]??0}))}];
+  const mv=(d,tipo,cod,cant,pres,base,costo,nota)=>{const fe=addDays(d);return {id:"m"+Math.random().toString(36).slice(2),fecha:fe,ts:new Date(fe+"T10:00:00").getTime(),tipo,cod,cant,pres,base,costo,nota};};
+  movs=[
+    mv(-5,"ENTRADA","IN0002",2,"Caja x 20 litros",40,8.5,"Factura F001-2231"),
+    mv(-4,"ENTRADA","IN0004",2,"Paquete x 15 und",30,1.2,"Guía 0045-778"),
+    mv(-3,"SALIDA","IN0005",10,"Unidad base",10,null,"Traslado a tienda 2"),
+    mv(-3,"ENTRADA","IN0166",4,"Paquete x 100 und",400,0.25,"Factura F002-118"),
+    mv(-2,"MERMA","RE0034",1,"Unidad base",1,null,"Batter descartado fin de turno")
+  ];
+}
+
+let items=[], hist=[], movs=[];
+let head={tienda:"1",fecha:"",resp:"",frec:"",dias:7};
+let editIdx=-1, pedOverride={};
+
+/* ---------- persistencia ---------- */
+function save(){if(ROLE==='lector')return;try{localStorage.setItem(KEY,JSON.stringify({items,head,hist,movs}));}catch(e){}cloudSave();}
+function load(){
+  try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.items)){items=d.items;hist=d.hist||[];movs=d.movs||[];head=Object.assign(head,d.head||{});return;}}catch(e){}
+  items=SEED.map(x=>Object.assign({},x)); items.forEach(normalize); seedHistory();
+}
+function normalize(it){
+  if(it.ok===undefined) it.ok=it.qMp!=null||it.qIn!=null||it.qCnt!=null;
+  if(it.ok&&!it.cts) it.cts=Date.now();
+  it.qMp=it.mpFac==null?0:(it.qMp??0);
+  it.qIn=it.inFac==null?0:(it.qIn??0);
+  it.qCnt=it.qCnt??0;
+  it.min=+it.min||0; it.max=+it.max||0; it.costo=+it.costo||0; it.venc=it.venc||"";
+  return it;
+}
+
+/* ---------- cálculos ---------- */
+const num=v=>(v===null||v===undefined||v==="")?null:(isNaN(+v)?null:+v);
+const r3=n=>Math.round(n*1000)/1000;
+function total(it){
+  let t=0;
+  if(it.mpFac!=null) t+=(it.qMp||0)*it.mpFac;
+  if(it.inFac!=null) t+=(it.qIn||0)*it.inFac;
+  t+=(it.qCnt||0)*(it.saldoFac??1);
+  return r3(t);
+}
+const counted=it=>!!it.ok;
+const fmt=n=>(+n).toLocaleString("es-PE",{minimumFractionDigits:3,maximumFractionDigits:3});
+const fmtS=n=>"S/ "+(+n).toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtSign=n=>(n>0?"+":"")+fmt(n);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const SIGN={ENTRADA:1,SALIDA:-1,MERMA:-1};
+const sortHist=()=>hist.slice().sort((a,b)=>a.fecha===b.fecha?a.ts-b.ts:a.fecha<b.fecha?-1:1);
+const lastConteo=()=>{const h=sortHist();return h[h.length-1]||null;};
+const isAfter=(m,s)=>m.fecha>s.fecha||(m.fecha===s.fecha&&m.ts>s.ts);
+function teorico(it){
+  const b=lastConteo(); if(!b) return null;
+  const s=b.items.find(x=>x.cod===it.cod);
+  let t=s?s.total:0;
+  movs.forEach(m=>{if(m.cod===it.cod&&isAfter(m,b)) t+=SIGN[m.tipo]*m.base;});
+  return r3(t);
+}
+// Stock actual = conteo físico + movimientos registrados después de contar (si no se contó, el teórico)
+function stockActual(it){
+  if(!counted(it)) return teorico(it);
+  let t=total(it); movs.forEach(m=>{if(m.cod===it.cod&&m.ts>(it.cts||0)) t+=SIGN[m.tipo]*m.base;});
+  return r3(t);
+}
+function estado(it){
+  const s=stockActual(it);
+  if(!(it.min>0)) return {k:"gray",t:"Sin mínimo"};
+  if(s==null) return {k:"gray",t:"Sin contar"};
+  if(s<it.min) return {k:"red",t:"Reponer"};
+  if(s<it.min*1.2) return {k:"amber",t:"Cerca del mínimo"};
+  return {k:"green",t:"OK"};
+}
+function vence(it){
+  if(!it.venc) return null;
+  const d=daysTo(it.venc), lim=+head.dias||7;
+  if(d<0) return {k:"red",t:"Vencido",d};
+  if(d===0) return {k:"red",t:"Vence hoy",d};
+  if(d<=lim) return {k:"amber",t:`Vence en ${d} día${d===1?"":"s"}`,d};
+  return {k:"green",t:"Vigente",d};
+}
+const valor=it=>r3(total(it)*it.costo);
+const st=o=>`<span class="st ${o.k}">${esc(o.t)}</span>`;
+
+/* ---------- filtros / selects ---------- */
+function visible(){
+  const q=$("fBuscar").value.trim().toLowerCase(),c=$("fCat").value,a=$("fAlm").value,e=$("fEstado").value,f=$("hFrec").value;
+  return items.map((it,i)=>({it,i})).filter(({it})=>{
+    if(q&&!(it.cod+" "+it.insumo).toLowerCase().includes(q)) return false;
+    if(c&&it.cat!==c) return false; if(a&&it.alm!==a) return false; if(f&&it.frec!==f) return false;
+    if(e==="ok"&&!counted(it)) return false; if(e==="pend"&&counted(it)) return false;
+    if((e==="red"||e==="amber")&&estado(it).k!==e) return false;
+    if(e==="venc"){const v=vence(it);if(!v||v.k==="green") return false;}
+    return true;
+  });
+}
+function fillSelect(sel,values,first,labels){
+  const cur=sel.value;
+  sel.innerHTML=(first!=null?`<option value="">${first}</option>`:"")+values.map(v=>`<option value="${esc(v)}">${esc(labels?labels[v]||v:v)}</option>`).join("");
+  if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+}
+function refreshFilters(){
+  const cats=[...new Set(items.map(i=>i.cat))].sort();
+  fillSelect($("fCat"),cats,"Todas");
+  fillSelect($("fAlm"),[...new Set([...ALMACENES,...items.map(i=>i.alm)])],"Todos");
+  fillSelect($("hFrec"),FRECUENCIAS,"Todas",FREC_LABEL);
+  $("dlCat").innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join("");
+  const opts=items.map(i=>i.cod), lab={}; items.forEach(i=>lab[i.cod]=i.cod+" · "+i.insumo);
+  fillSelect(document.querySelector("#fMov [name=cod]"),opts,null,lab);
+  fillSelect($("kxCod"),opts,"Todos",lab);
+  presOptions();
+}
+
+/* ---------- render conteo ---------- */
+function qInput(i,field,val){return `<input class="q" type="number" step="any" min="0" inputmode="decimal" data-i="${i}" data-f="${field}" value="${val??0}">`;}
+function difCell(it){
+  const t=teorico(it); if(t==null) return `<td class="num">—</td><td class="num">—</td>`;
+  if(!counted(it)) return `<td class="num">${fmt(t)}</td><td class="num">—</td>`;
+  const d=r3(total(it)-t);
+  return `<td class="num">${fmt(t)}</td><td class="num ${d<0?"neg":d>0?"pos":""}">${fmtSign(d)}</td>`;
+}
+function rowHTML(it,i){
+  const mpNA=it.mpFac==null,inNA=it.inFac==null,ok=counted(it),v=vence(it);
+  return `<tr class="${ok?"":"pend"}" data-row="${i}">
+    <td class="num">${esc(it.tienda)}</td>
+    <td><span class="tag ${esc(it.frec)}">${esc(it.frec)}</span></td>
+    <td>${esc(it.alm)}</td><td>${esc(it.cat)}</td><td>${esc(it.cod)}</td><td><b>${esc(it.insumo)}</b></td>
+    ${mpNA?`<td class="na">0</td><td class="na">No aplica</td>`:`<td>${qInput(i,"qMp",it.qMp)}</td><td>${esc(it.mpDesc)}</td>`}
+    ${inNA?`<td class="na">0</td><td class="na">No aplica</td>`:`<td>${qInput(i,"qIn",it.qIn)}</td><td>${esc(it.inDesc)}</td>`}
+    <td class="cnt">${qInput(i,"qCnt",it.qCnt)}</td>
+    <td class="num">${esc(it.saldoFac??1)}</td>
+    <td class="total">${fmt(total(it))}${ok?"":'<span class="pend-tag">Pendiente</span>'}</td>
+    <td>${esc(it.umb)}</td>
+    ${difCell(it)}
+    <td class="num">${it.min>0?fmt(it.min):"—"}</td>
+    <td>${st(estado(it))}</td>
+    <td class="num">${it.costo.toFixed(2)}</td>
+    <td class="num">${valor(it).toFixed(2)}</td>
+    <td>${v?`${fmtDate(it.venc)}<br>${st(v)}`:"—"}</td>
+    <td class="actions no-print"><button class="small" data-edit="${i}">Editar</button><button class="small danger" data-del="${i}">Eliminar</button></td>
+  </tr>`;
+}
+function renderConteo(){
+  const rows=visible();
+  $("tbody").innerHTML=rows.length?rows.map(({it,i})=>rowHTML(it,i)).join(""):`<tr><td colspan="22" class="empty">No hay insumos con estos filtros.</td></tr>`;
+  $("footVal").textContent=fmtS(rows.reduce((s,{it})=>s+valor(it),0));
+}
+function kpis(){
+  const f=$("hFrec").value,list=items.filter(it=>!f||it.frec===f);
+  const done=list.filter(counted).length;
+  $("kItems").textContent=list.length;$("kDone").textContent=done;$("kPend").textContent=list.length-done;
+  $("kBar").style.width=(list.length?done/list.length*100:0)+"%";
+  $("kVal").textContent=fmtS(list.reduce((s,it)=>s+valor(it),0));
+  const nMin=items.filter(it=>estado(it).k==="red").length;
+  const nVen=items.filter(it=>{const v=vence(it);return v&&v.k!=="green";}).length;
+  $("kMin").textContent=nMin;$("kVen").textContent=nVen;
+  const b=$("bAlert");b.hidden=!(nMin+nVen);b.textContent=nMin+nVen;
+  const p=$("bPed");p.hidden=!nMin;p.textContent=nMin;
+}
+
+/* ---------- render alertas ---------- */
+function renderAlertas(){
+  const low=items.filter(it=>["red","amber"].includes(estado(it).k)).sort((a,b)=>estado(a).k<estado(b).k?1:-1);
+  $("tbAlMin").innerHTML=low.length?low.map(it=>{const s=stockActual(it);return `<tr><td><b>${esc(it.insumo)}</b><br><small>${esc(it.cod)}${counted(it)?"":" · stock teórico"}</small></td><td class="num">${fmt(s)} ${esc(it.umb)}</td><td class="num">${fmt(it.min)}</td><td class="num neg">${fmt(Math.max(0,it.min-s))}</td><td>${st(estado(it))}</td></tr>`;}).join(""):`<tr><td colspan="5" class="empty">Todo el stock está sobre el mínimo.</td></tr>`;
+  const ven=items.filter(it=>{const v=vence(it);return v&&v.k!=="green";}).sort((a,b)=>a.venc<b.venc?-1:1);
+  $("tbAlVen").innerHTML=ven.length?ven.map(it=>{const v=vence(it);return `<tr><td><b>${esc(it.insumo)}</b><br><small>${esc(it.cod)}</small></td><td>${fmtDate(it.venc)}</td><td class="num">${v.d}</td><td class="num">${fmt(total(it))} ${esc(it.umb)}</td><td class="num">${fmtS(valor(it))}</td><td>${st(v)}</td></tr>`;}).join(""):`<tr><td colspan="6" class="empty">No hay insumos vencidos ni por vencer.</td></tr>`;
+}
+
+/* ---------- kardex ---------- */
+const FM=document.getElementById("fMov");
+function presOptions(){
+  const it=items.find(x=>x.cod===FM.cod.value); const sel=FM.pres; if(!it){sel.innerHTML="";return;}
+  const o=[`<option value="1">Unidad base (${esc(it.umb)})</option>`];
+  if(it.mpFac!=null) o.unshift(`<option value="${it.mpFac}">${esc(it.mpDesc||"Master Pack")}</option>`);
+  if(it.inFac!=null) o.splice(it.mpFac!=null?1:0,0,`<option value="${it.inFac}">${esc(it.inDesc||"Inner Pack")}</option>`);
+  sel.innerHTML=o.join(""); movPreview();
+}
+function movPreview(){
+  const it=items.find(x=>x.cod===FM.cod.value),c=num(FM.cant.value);
+  document.querySelectorAll(".entOnly").forEach(e=>e.style.display=FM.tipo.value==="ENTRADA"?"":"none");
+  $("movPrev").textContent=it&&c!=null?`${c} × ${FM.pres.options[FM.pres.selectedIndex].text} = ${fmt(c*+FM.pres.value)} ${it.umb}`:"La cantidad se convierte a la unidad de medida base del insumo.";
+}
+FM.cod.addEventListener("change",presOptions);
+["input","change"].forEach(ev=>FM.addEventListener(ev,e=>{if(e.target.name!=="cod") movPreview();}));
+FM.addEventListener("submit",e=>{
+  e.preventDefault();
+  const it=items.find(x=>x.cod===FM.cod.value); if(!it) return;
+  const cant=num(FM.cant.value); if(!(cant>0)){toast("Ingresa una cantidad mayor a 0");return;}
+  const m={id:"m"+Date.now(),fecha:FM.fecha.value||today(),ts:Date.now(),tipo:FM.tipo.value,cod:it.cod,cant,
+    pres:FM.pres.options[FM.pres.selectedIndex].text,base:r3(cant*+FM.pres.value),costo:null,nota:FM.nota.value.trim()};
+  if(m.tipo==="ENTRADA"){
+    const c=num(FM.costo.value); if(c!=null&&c>0){m.costo=c;it.costo=c;}
+    if(FM.venc.value&&(!it.venc||FM.venc.value<it.venc)) it.venc=FM.venc.value;
+  }
+  movs.push(m); save(); FM.cant.value="";FM.costo.value="";FM.venc.value="";FM.nota.value=""; movPreview(); renderAll();
+  toast(`${m.tipo==="ENTRADA"?"Entrada":m.tipo==="SALIDA"?"Salida":"Merma"} registrada: ${fmt(m.base)} ${it.umb}`);
+});
+function renderKardex(){
+  const c=$("kxCod").value,t=$("kxTipo").value;
+  const list=movs.filter(m=>(!c||m.cod===c)&&(!t||m.tipo===t)).sort((a,b)=>a.fecha===b.fecha?b.ts-a.ts:a.fecha<b.fecha?1:-1);
+  $("tbKx").innerHTML=list.length?list.map(m=>{const it=items.find(x=>x.cod===m.cod)||{insumo:"(eliminado)",umb:"",costo:0};
+    const cu=m.costo??it.costo; const cls=m.tipo==="ENTRADA"?"green":m.tipo==="SALIDA"?"amber":"red";
+    return `<tr><td>${fmtDate(m.fecha)}</td><td>${st({k:cls,t:m.tipo})}</td><td>${esc(m.cod)}</td><td>${esc(it.insumo)}</td><td class="num">${m.cant}</td><td>${esc(m.pres)}</td><td class="num ${m.tipo==="ENTRADA"?"pos":"neg"}">${m.tipo==="ENTRADA"?"+":"−"}${fmt(m.base)}</td><td>${esc(it.umb)}</td><td class="num">${(+cu).toFixed(2)}</td><td class="num">${(m.base*cu).toFixed(2)}</td><td>${esc(m.nota)}</td><td class="no-print"><button class="small danger" data-delmov="${m.id}">Eliminar</button></td></tr>`;}).join(""):`<tr><td colspan="12" class="empty">Aún no hay movimientos registrados.</td></tr>`;
+}
+$("tbKx").addEventListener("click",e=>{const id=e.target.dataset.delmov;if(id&&confirm("¿Eliminar este movimiento?")){movs=movs.filter(m=>m.id!==id);save();renderAll();toast("Movimiento eliminado");}});
+["kxCod","kxTipo"].forEach(id=>$(id).addEventListener("change",renderKardex));
+
+/* ---------- historial ---------- */
+function snapshotActual(){return {id:"actual",fecha:head.fecha||today(),ts:Date.now(),tienda:head.tienda,resp:head.resp,items:items.map(it=>({cod:it.cod,insumo:it.insumo,umb:it.umb,cat:it.cat,costo:it.costo,total:total(it),ok:counted(it)}))};}
+$("btnGuardarConteo").onclick=()=>{
+  const pend=items.filter(it=>!counted(it)).length;
+  if(!confirm(`¿Guardar el conteo del ${fmtDate(head.fecha||today())} en el historial?${pend?`\n\nAtención: ${pend} insumo(s) siguen pendientes y se guardarán con su valor actual.`:""}`)) return;
+  const s=snapshotActual(); s.id="h"+s.ts; hist.push(s); save(); renderAll(); toast("Conteo guardado en el historial");
+};
+const snapVal=s=>s.items.reduce((a,x)=>a+x.total*(x.costo||0),0);
+function renderHist(){
+  const h=sortHist().reverse();
+  $("tbHist").innerHTML=h.length?h.map(s=>`<tr><td>${fmtDate(s.fecha)}</td><td>${esc(s.tienda)}</td><td>${esc(s.resp||"—")}</td><td class="num">${s.items.length}</td><td class="num">${snapVal(s).toFixed(2)}</td><td class="actions no-print"><button class="small" data-xh="${s.id}">Exportar</button><button class="small danger" data-dh="${s.id}">Eliminar</button></td></tr>`).join(""):`<tr><td colspan="6" class="empty">Todavía no hay conteos guardados.</td></tr>`;
+  const opts=h.map(s=>({v:s.id,t:`${fmtDate(s.fecha)} · ${s.resp||"conteo"}`}));
+  const A=$("cmpA"),B=$("cmpB"),ca=A.value,cb=B.value;
+  A.innerHTML=opts.map(o=>`<option value="${o.v}">${esc(o.t)}</option>`).join("")||`<option value="">— sin conteos —</option>`;
+  B.innerHTML=`<option value="actual">Conteo actual (sin guardar)</option>`+opts.map(o=>`<option value="${o.v}">${esc(o.t)}</option>`).join("");
+  if([...A.options].some(o=>o.value===ca)) A.value=ca;
+  if([...B.options].some(o=>o.value===cb)) B.value=cb;
+  renderCmp();
+}
+function comparison(){
+  const a=hist.find(s=>s.id===$("cmpA").value); if(!a) return null;
+  const b=$("cmpB").value==="actual"?snapshotActual():hist.find(s=>s.id===$("cmpB").value); if(!b) return null;
+  const inRange=m=>isAfter(m,a)&&!isAfter(m,b);
+  const cods=[...new Set([...a.items.map(x=>x.cod),...b.items.map(x=>x.cod)])];
+  return {a,b,rows:cods.map(cod=>{
+    const ia=a.items.find(x=>x.cod===cod),ib=b.items.find(x=>x.cod===cod),ref=ib||ia;
+    const mv=movs.filter(m=>m.cod===cod&&inRange(m)),sum=t=>r3(mv.filter(m=>m.tipo===t).reduce((s,m)=>s+m.base,0));
+    const ini=ia?ia.total:0,fin=ib?ib.total:0,ent=sum("ENTRADA"),sal=sum("SALIDA"),mer=sum("MERMA");
+    const con=r3(ini+ent-sal-mer-fin);
+    return {cod,insumo:ref.insumo,umb:ref.umb,ini,ent,sal,mer,fin,con,val:r3(con*(ref.costo||0))};
+  })};
+}
+function renderCmp(){
+  const c=comparison();
+  if(!c){$("tbCmp").innerHTML=`<tr><td colspan="10" class="empty">Guarda al menos un conteo para comparar.</td></tr>`;$("footCmp").textContent="";return;}
+  if(c.b.id!=="actual"&&!(c.b.fecha>c.a.fecha||(c.b.fecha===c.a.fecha&&c.b.ts>c.a.ts))){$("tbCmp").innerHTML=`<tr><td colspan="10" class="empty">El conteo final debe ser posterior al inicial.</td></tr>`;$("footCmp").textContent="";return;}
+  $("tbCmp").innerHTML=c.rows.map(r=>`<tr><td>${esc(r.cod)}</td><td>${esc(r.insumo)}</td><td>${esc(r.umb)}</td><td class="num">${fmt(r.ini)}</td><td class="num ${r.ent?"pos":""}">${r.ent?"+"+fmt(r.ent):"0"}</td><td class="num ${r.sal?"neg":""}">${r.sal?"−"+fmt(r.sal):"0"}</td><td class="num ${r.mer?"neg":""}">${r.mer?"−"+fmt(r.mer):"0"}</td><td class="num">${fmt(r.fin)}</td><td class="num"><b class="${r.con<0?"pos":""}">${fmt(r.con)}</b></td><td class="num">${r.val.toFixed(2)}</td></tr>`).join("");
+  $("footCmp").textContent=fmtS(c.rows.reduce((s,r)=>s+r.val,0));
+}
+["cmpA","cmpB"].forEach(id=>$(id).addEventListener("change",renderCmp));
+$("tbHist").addEventListener("click",e=>{
+  const d=e.target.dataset.dh,x=e.target.dataset.xh;
+  if(d&&confirm("¿Eliminar este conteo del historial?")){hist=hist.filter(s=>s.id!==d);save();renderAll();toast("Conteo eliminado del historial");}
+  if(x){const s=hist.find(h=>h.id===x);xlsxDownload([["CONTEO DEL "+fmtDate(s.fecha)],["Tienda",s.tienda,"Responsable",s.resp],[],["COD INS","INSUMO","CATEGORIA","TOTAL","UNIDAD BASE","COSTO UNIT","VALOR"],...s.items.map(i=>[i.cod,i.insumo,i.cat,i.total,i.umb,i.costo,r3(i.total*(i.costo||0))])],"Conteo",`conteo_${s.fecha}.xlsx`);}
+});
+$("btnCmpXlsx").onclick=()=>{const c=comparison();if(!c){toast("No hay conteos para comparar");return;}
+  xlsxDownload([["CONSUMO ENTRE CONTEOS"],["Desde",fmtDate(c.a.fecha),"Hasta",c.b.id==="actual"?"Conteo actual":fmtDate(c.b.fecha)],[],["COD INS","INSUMO","UNIDAD BASE","STOCK INICIAL","ENTRADAS","SALIDAS","MERMAS","STOCK FINAL","CONSUMO","VALOR CONSUMO S/"],...c.rows.map(r=>[r.cod,r.insumo,r.umb,r.ini,r.ent,r.sal,r.mer,r.fin,r.con,r.val])],"Consumo",`consumo_${c.a.fecha}_a_${c.b.fecha}.xlsx`);};
+
+/* ---------- pedido de compra ---------- */
+function pedidoRows(){
+  const amb=$("pedAmber").checked;
+  return items.filter(it=>{const k=estado(it).k;return k==="red"||(amb&&k==="amber");}).map(it=>{
+    const s=stockActual(it)||0, obj=it.max>0?it.max:it.min*2, need=r3(Math.max(0,obj-s));
+    let fac=1,pres="Unidad base ("+it.umb+")";
+    if(it.mpFac!=null){fac=it.mpFac;pres=it.mpDesc||"Master Pack";}else if(it.inFac!=null){fac=it.inFac;pres=it.inDesc||"Inner Pack";}
+    const sug=(it.mpFac!=null||it.inFac!=null)?Math.ceil(need/fac-1e-9):Math.ceil(need*1000)/1000;
+    const qty=pedOverride[it.cod]??sug, base=r3(qty*fac);
+    return {it,s,obj,need,fac,pres,qty,base,cost:r3(base*it.costo),est:estado(it)};
+  });
+}
+function renderPedido(){
+  const rows=pedidoRows();
+  $("tbPed").innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(r.it.cod)}</td><td><b>${esc(r.it.insumo)}</b></td><td>${st(r.est)}</td><td class="num">${fmt(r.s)}</td><td class="num">${fmt(r.it.min)}</td><td class="num">${fmt(r.obj)}</td><td class="num">${fmt(r.need)}</td><td class="num"><input class="q" type="number" min="0" step="any" data-ped="${esc(r.it.cod)}" value="${r.qty}"></td><td>${esc(r.pres)}</td><td class="num">${fmt(r.base)} ${esc(r.it.umb)}</td><td class="num">${r.it.costo.toFixed(2)}</td><td class="num">${r.cost.toFixed(2)}</td></tr>`).join(""):`<tr><td colspan="12" class="empty">No hay insumos por reponer. ¡Stock en orden!</td></tr>`;
+  $("footPed").textContent=fmtS(rows.reduce((s,r)=>s+r.cost,0));
+}
+$("tbPed").addEventListener("change",e=>{const c=e.target.dataset.ped;if(c){pedOverride[c]=num(e.target.value)??0;renderPedido();}});
+$("pedAmber").addEventListener("change",renderPedido);
+const pedAOA=()=>[["PEDIDO DE COMPRA"],["Tienda",head.tienda,"Fecha",fmtDate(today()),"Solicita",head.resp],[],["COD INS","INSUMO","STOCK ACTUAL","MINIMO","MAXIMO","PEDIR","PRESENTACION","EQUIVALE (U. BASE)","UNIDAD BASE","COSTO UNIT S/","COSTO ESTIMADO S/"],...pedidoRows().filter(r=>r.qty>0).map(r=>[r.it.cod,r.it.insumo,r.s,r.it.min,r.obj,r.qty,r.pres,r.base,r.it.umb,r.it.costo,r.cost])];
+$("btnPedXlsx").onclick=()=>xlsxDownload(pedAOA(),"Pedido",`pedido_compra_${today()}.xlsx`);
+$("btnPedCsv").onclick=()=>csvDownload(pedAOA(),`pedido_compra_${today()}.csv`);
+$("btnPedWa").onclick=()=>{const r=pedidoRows().filter(r=>r.qty>0);if(!r.length){toast("El pedido está vacío");return;}
+  const t=`PEDIDO DE COMPRA - Tienda ${head.tienda||"1"}\nFecha: ${fmtDate(today())}\n\n${r.map(x=>`- ${x.it.insumo} (${x.it.cod}): ${x.qty} x ${x.pres}`).join("\n")}\n\nTotal estimado: ${fmtS(r.reduce((s,x)=>s+x.cost,0))}`;
+  window.open("https://wa.me/?text="+encodeURIComponent(t),"_blank");};
+$("btnPedRecibir").onclick=()=>{const r=pedidoRows().filter(r=>r.qty>0);if(!r.length){toast("El pedido está vacío");return;}
+  if(!confirm(`¿Registrar ${r.length} entrada(s) en el kardex con fecha de hoy?`)) return;
+  r.forEach((x,k)=>movs.push({id:"m"+Date.now()+k,fecha:today(),ts:Date.now()+k,tipo:"ENTRADA",cod:x.it.cod,cant:x.qty,pres:x.pres,base:x.base,costo:x.it.costo,nota:"Pedido de compra recibido"}));
+  pedOverride={};save();renderAll();toast("Pedido registrado como entradas. El stock teórico se actualizó.");};
+
+/* ---------- eventos conteo ---------- */
+$("tbody").addEventListener("input",e=>{
+  const el=e.target;if(!el.dataset.f) return;
+  const i=+el.dataset.i,it=items[i];it[el.dataset.f]=num(el.value)??0;it.ok=true;it.cts=Date.now();save();
+  const tr=el.closest("tr"),tmp=document.createElement("tbody");tmp.innerHTML=rowHTML(it,i);
+  // actualiza solo las celdas calculadas para no perder el foco
+  [...tmp.firstElementChild.children].forEach((td,k)=>{if(!td.querySelector("input")) tr.children[k].outerHTML=td.outerHTML;});
+  tr.classList.remove("pend"); kpis(); $("footVal").textContent=fmtS(visible().reduce((s,{it})=>s+valor(it),0));
+});
+$("tbody").addEventListener("focusout",e=>{if(e.target.dataset.f&&e.target.value==="") e.target.value="0";});
+$("tbody").addEventListener("focusin",e=>{if(e.target.dataset.f) e.target.select();});
+$("tbody").addEventListener("keydown",e=>{
+  if(e.key!=="Enter"||!e.target.dataset.f) return; e.preventDefault();
+  const all=[...document.querySelectorAll("#tbody input.q")],n=all[all.indexOf(e.target)+1];if(n){n.focus();}
+});
+$("tbody").addEventListener("click",e=>{
+  const ed=e.target.dataset.edit,dl=e.target.dataset.del;
+  if(ed!=null) openModal(+ed);
+  if(dl!=null){const it=items[+dl];if(confirm(`¿Eliminar "${it.insumo}" (${it.cod}) del inventario?`)){items.splice(+dl,1);save();refreshFilters();renderAll();toast("Insumo eliminado");}}
+});
+
+/* ---------- modal insumo ---------- */
+const F=$("form");
+fillSelect(F.frec,FRECUENCIAS,null,FREC_LABEL);fillSelect(F.alm,ALMACENES,null);fillSelect(F.umb,UNIDADES,null);
+function syncPack(){F.mpDesc.disabled=F.mpFac.disabled=!F.mpOn.checked;F.inDesc.disabled=F.inFac.disabled=!F.inOn.checked;}
+F.mpOn.addEventListener("change",syncPack);F.inOn.addEventListener("change",syncPack);
+function openModal(i){
+  editIdx=i;const it=i>=0?items[i]:{tienda:head.tienda||"1",frec:"SEM",alm:"SECOS",cat:"",cod:"",insumo:"",mpDesc:"",mpFac:null,inDesc:"",inFac:null,saldoFac:1,umb:"UNIDAD",min:0,max:0,costo:0,venc:""};
+  $("mTitle").textContent=i>=0?"Editar insumo":"Agregar insumo";
+  ["cod","insumo","tienda","cat","mpDesc","inDesc","venc"].forEach(k=>F[k].value=it[k]??"");
+  ["min","max","costo"].forEach(k=>F[k].value=it[k]??0);
+  if(![...F.umb.options].some(o=>o.value===it.umb)) F.umb.add(new Option(it.umb,it.umb));
+  if(![...F.alm.options].some(o=>o.value===it.alm)) F.alm.add(new Option(it.alm,it.alm));
+  F.frec.value=it.frec;F.alm.value=it.alm;F.umb.value=it.umb;
+  F.mpOn.checked=it.mpFac!=null;F.mpFac.value=it.mpFac??"";
+  F.inOn.checked=it.inFac!=null;F.inFac.value=it.inFac??"";
+  F.saldoFac.value=it.saldoFac??1;
+  syncPack();$("modalBg").classList.add("open");F.cod.focus();
+}
+function closeModal(){$("modalBg").classList.remove("open");}
+$("btnNuevo").onclick=()=>openModal(-1);
+$("btnCancel").onclick=closeModal;
+$("modalBg").addEventListener("click",e=>{if(e.target.id==="modalBg") closeModal();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape") closeModal();});
+F.addEventListener("submit",e=>{
+  e.preventDefault();
+  const cod=F.cod.value.trim().toUpperCase();
+  if(items.some((x,j)=>x.cod.toUpperCase()===cod&&j!==editIdx)){toast(`El código ${cod} ya existe`);F.cod.focus();return;}
+  if(F.mpOn.checked&&!(num(F.mpFac.value)>0)){toast("Indica el contenido del Master Pack");F.mpFac.focus();return;}
+  if(F.inOn.checked&&!(num(F.inFac.value)>0)){toast("Indica el contenido del Inner Pack");F.inFac.focus();return;}
+  const mn=num(F.min.value)||0,mx=num(F.max.value)||0;
+  if(mx>0&&mx<mn){toast("El stock máximo no puede ser menor que el mínimo");F.max.focus();return;}
+  const old=editIdx>=0?items[editIdx]:null, base=old||{qMp:0,qIn:0,qCnt:0,ok:false};
+  const it=Object.assign({},base,{
+    cod,insumo:F.insumo.value.trim().toUpperCase(),tienda:F.tienda.value.trim()||"1",
+    frec:F.frec.value,alm:F.alm.value,cat:F.cat.value.trim(),umb:F.umb.value,
+    mpDesc:F.mpOn.checked?F.mpDesc.value.trim():"",mpFac:F.mpOn.checked?num(F.mpFac.value):null,
+    inDesc:F.inOn.checked?F.inDesc.value.trim():"",inFac:F.inOn.checked?num(F.inFac.value):null,
+    saldoFac:num(F.saldoFac.value)??1,min:mn,max:mx,costo:num(F.costo.value)||0,venc:F.venc.value
+  });
+  normalize(it);
+  if(old&&old.cod!==cod){movs.forEach(m=>{if(m.cod===old.cod)m.cod=cod;});hist.forEach(h=>h.items.forEach(x=>{if(x.cod===old.cod)x.cod=cod;}));}
+  if(editIdx>=0) items[editIdx]=it; else items.push(it);
+  items.sort((a,b)=>a.insumo.localeCompare(b.insumo,"es"));
+  save();refreshFilters();renderAll();closeModal();toast(editIdx>=0?"Insumo actualizado":"Insumo agregado");
+});
+
+/* ---------- exportar inventario ---------- */
+const COLS=[
+ ["TIENDA","tienda"],["FREC","frec"],["ALMACENAMIENTO","alm"],["CATEGORIA","cat"],["COD INS","cod"],["INSUMO","insumo"],
+ ["CANTIDAD MP","qMp"],["DESCRIPCION MASTER PACK","mpDesc"],["CONTENIDO MP","mpFac"],
+ ["CANTIDAD INNER PACK","qIn"],["DESCRIPCION INNER PACK","inDesc"],["CONTENIDO INNER","inFac"],
+ ["CONTEO UNIDADES / SALDOS","qCnt"],["UNIDAD MEDIDA SALDOS","saldoFac"],["TOTAL INVENTARIO","_total"],["UNIDAD DE MEDIDA BASE","umb"],
+ ["STOCK TEORICO","_teo"],["DIFERENCIA","_dif"],["STOCK MINIMO","min"],["STOCK MAXIMO","max"],["ESTADO STOCK","_est"],
+ ["COSTO UNITARIO","costo"],["VALOR S/","_val"],["FECHA VENCIMIENTO","venc"],["ESTADO VENCIMIENTO","_ven"]
+];
+function exportRows(){
+  const f=$("hFrec").value;
+  return items.filter(it=>!f||it.frec===f).map(it=>COLS.map(([h,k])=>{
+    const t=teorico(it);
+    switch(k){
+      case "_total":return total(it);
+      case "_teo":return t??"";
+      case "_dif":return t==null||!counted(it)?"":r3(total(it)-t);
+      case "_est":return estado(it).t;
+      case "_val":return valor(it);
+      case "_ven":{const v=vence(it);return v?v.t:"";}
+      case "mpDesc":return it.mpFac==null?"No aplica":it.mpDesc;
+      case "inDesc":return it.inFac==null?"No aplica":it.inDesc;
+      case "qMp":case "qIn":case "qCnt":return it[k]??0;
+    }
+    const v=it[k];return v==null?"":v;
+  }));
+}
+const stamp=()=>head.fecha||today();
+const fileBase=()=>`inventario_tienda${(head.tienda||"1").replace(/\W/g,"")}_${stamp()}`;
+function download(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+function csvDownload(aoa,name){
+  const q=v=>{v=String(v??"");return /[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  download(new Blob(["﻿"+aoa.map(r=>r.map(q).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"}),name);toast("CSV descargado");
+}
+function sheet(aoa){const ws=XLSX.utils.aoa_to_sheet(aoa);const hdr=aoa.find(r=>r.length>3)||[];ws["!cols"]=hdr.map((h,k)=>({wch:Math.max(10,Math.min(34,Math.max(String(h).length,...aoa.map(r=>String(r[k]??"").length))+2))}));return ws;}
+function xlsxDownload(aoa,name,file,extra){
+  if(typeof XLSX==="undefined"){toast("No se pudo cargar la librería de Excel");return;}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,sheet(aoa),name);
+  (extra||[]).forEach(([n,a])=>XLSX.utils.book_append_sheet(wb,sheet(a),n));
+  XLSX.writeFile(wb,file);toast("Excel descargado");
+}
+const invAOA=()=>[["REGISTRO DE INVENTARIO"],["Tienda",head.tienda,"Fecha",fmtDate(stamp()),"Responsable",head.resp],[],COLS.map(c=>c[0]),...exportRows()];
+$("btnCsv").onclick=()=>csvDownload(invAOA(),fileBase()+".csv");
+$("btnXlsx").onclick=()=>{
+  const res={};items.forEach(it=>{const k=it.cat;res[k]=res[k]||{n:0,c:0,v:0,r:0};res[k].n++;if(counted(it))res[k].c++;res[k].v+=valor(it);if(estado(it).k==="red")res[k].r++;});
+  const resumen=[["CATEGORIA","INSUMOS","CONTADOS","PENDIENTES","BAJO MINIMO","VALOR S/"],...Object.keys(res).sort().map(k=>[k,res[k].n,res[k].c,res[k].n-res[k].c,res[k].r,r3(res[k].v)])];
+  xlsxDownload(invAOA(),"Inventario",fileBase()+".xlsx",[["Resumen",resumen],["Kardex",kxAOA()]]);
+};
+const kxAOA=()=>[["FECHA","TIPO","COD INS","INSUMO","CANTIDAD","PRESENTACION","CANT. UNIDAD BASE","UNIDAD BASE","COSTO UNIT","VALOR S/","DOCUMENTO / NOTA"],...movs.slice().sort((a,b)=>a.fecha<b.fecha?-1:1).map(m=>{const it=items.find(x=>x.cod===m.cod)||{insumo:"",umb:"",costo:0};const cu=m.costo??it.costo;return [fmtDate(m.fecha),m.tipo,m.cod,it.insumo,m.cant,m.pres,SIGN[m.tipo]*m.base,it.umb,cu,r3(m.base*cu),m.nota];})];
+$("btnKxXlsx").onclick=()=>xlsxDownload(kxAOA(),"Kardex",`kardex_${today()}.xlsx`);
+
+/* ---------- enviar ---------- */
+function summary(){
+  const f=$("hFrec").value,list=items.filter(it=>!f||it.frec===f);
+  const done=list.filter(counted).length,low=list.filter(it=>estado(it).k==="red");
+  return `INVENTARIO - Tienda ${head.tienda||"1"}\nFecha: ${fmtDate(stamp())}\nResponsable: ${head.resp||"-"}\nFrecuencia: ${f?FREC_LABEL[f]:"Todas"}\nContados: ${done}/${list.length}\nValor: ${fmtS(list.reduce((s,it)=>s+valor(it),0))}\n\n${list.map(it=>`- ${it.cod} ${it.insumo}: ${fmt(total(it))} ${it.umb}${counted(it)?"":" (PENDIENTE)"}`).join("\n")}${low.length?`\n\nPOR REPONER:\n${low.map(it=>`- ${it.insumo}`).join("\n")}`:""}`;
+}
+$("btnWa").onclick=()=>window.open("https://wa.me/?text="+encodeURIComponent(summary()),"_blank");
+$("btnMail").onclick=()=>{location.href=`mailto:?subject=${encodeURIComponent("Inventario Tienda "+(head.tienda||"1")+" - "+fmtDate(stamp()))}&body=${encodeURIComponent(summary()+"\n\n(Adjuntar el Excel o CSV exportado para su procesamiento)")}`;};
+
+/* ---------- cargar archivo ---------- */
+$("btnCargar").onclick=()=>$("fileIn").click();
+$("fileIn").addEventListener("change",async e=>{
+  const file=e.target.files[0];e.target.value="";if(!file) return;
+  try{
+    let rows;
+    if(/\.csv$/i.test(file.name)){
+      const txt=(await file.text()).replace(/^﻿/,"");
+      const sep=(txt.split("\n").find(l=>/COD/i.test(l))||"").includes(";")?";":",";
+      rows=parseCSV(txt,sep);
+    }else{
+      if(typeof XLSX==="undefined") throw new Error("Librería de Excel no disponible");
+      const wb=XLSX.read(await file.arrayBuffer(),{cellDates:true});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:"",raw:true});
+    }
+    const n=importRows(rows);save();refreshFilters();renderAll();toast(`${n} insumos cargados`);
+  }catch(err){toast("No se pudo leer el archivo: "+err.message);}
+});
+function parseCSV(t,sep){
+  const out=[];let row=[],cur="",q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else if(c==='"') q=true;else if(c===sep){row.push(cur);cur="";}else if(c==="\n"){row.push(cur.replace(/\r$/,""));out.push(row);row=[];cur="";}else cur+=c;}
+  if(cur||row.length){row.push(cur);out.push(row);}return out;
+}
+const norm=s=>String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/\s+/g," ").trim();
+function toISODate(v){
+  if(!v) return "";
+  if(v instanceof Date) return iso(v);
+  if(typeof v==="number"&&v>20000) return iso(new Date(Math.round((v-25569)*86400000)+new Date().getTimezoneOffset()*60000));
+  const s=String(v).trim(),m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return /^\d{4}-\d{2}-\d{2}/.test(s)?s.slice(0,10):"";
+}
+function importRows(rows){
+  const hi=rows.findIndex(r=>r.some(c=>/^COD/.test(norm(c))));
+  if(hi<0) throw new Error("no se encontró la columna COD INS");
+  const H=rows[hi].map(norm),find=(...keys)=>H.findIndex(h=>keys.some(k=>h.startsWith(k)));
+  const idx={tienda:find("TIENDA"),frec:find("FREC"),alm:find("ALMACENA"),cat:find("CATEG"),cod:find("COD"),insumo:find("INSUMO"),
+    qMp:find("CANTIDAD MP"),mpDesc:find("DESCRIPCION MASTER"),mpFac:find("CONTENIDO MP"),qIn:find("CANTIDAD INNER"),inDesc:find("DESCRIPCION INNER"),inFac:find("CONTENIDO INNER"),
+    qCnt:find("CONTEO"),saldoFac:find("UNIDAD MEDIDA SALDOS"),umb:find("UNIDAD DE MEDIDA BASE","UNIDAD BASE"),
+    min:find("STOCK MIN"),max:find("STOCK MAX"),costo:find("COSTO UNIT"),venc:find("FECHA VENC","VENCE","VENCIMIENTO")};
+  const raw=(r,k)=>idx[k]>=0?r[idx[k]]:"";
+  const g=(r,k)=>String(raw(r,k)??"").trim();
+  const n=(r,k)=>num(g(r,k).replace(",","."));
+  const packFac=(desc,fac)=>{if(/no aplica/i.test(desc)) return null;if(num(fac)!=null&&fac!=="") return num(fac);
+    if(!desc) return null;const m=desc.match(/x\s*([\d.,]+)/i);return m?+m[1].replace(",","."):1;};
+  let c=0;
+  rows.slice(hi+1).forEach(r=>{
+    const cod=g(r,"cod").toUpperCase();if(!cod) return;
+    const mpD=g(r,"mpDesc"),inD=g(r,"inDesc"),prev=items.find(x=>x.cod.toUpperCase()===cod);
+    const it={tienda:g(r,"tienda")||"1",frec:norm(g(r,"frec"))||"SEM",alm:norm(g(r,"alm"))||"SECOS",cat:g(r,"cat")||"Sin categoría",cod,insumo:g(r,"insumo").toUpperCase(),
+      mpFac:packFac(mpD,g(r,"mpFac")),inFac:packFac(inD,g(r,"inFac")),saldoFac:n(r,"saldoFac")??1,umb:norm(g(r,"umb"))||"UNIDAD",
+      min:idx.min>=0?(n(r,"min")||0):(prev?prev.min:0),max:idx.max>=0?(n(r,"max")||0):(prev?prev.max:0),
+      costo:idx.costo>=0?(n(r,"costo")||0):(prev?prev.costo:0),venc:idx.venc>=0?toISODate(raw(r,"venc")):(prev?prev.venc:"")};
+    it.mpDesc=it.mpFac==null?"":mpD;it.inDesc=it.inFac==null?"":inD;
+    if(it.frec.startsWith("SEMANAL")) it.frec="SEM";
+    it.qMp=it.mpFac==null?null:n(r,"qMp");it.qIn=it.inFac==null?null:n(r,"qIn");it.qCnt=n(r,"qCnt");
+    it.ok=[it.qMp,it.qIn,it.qCnt].some(v=>v!=null&&v!==0);normalize(it);
+    const j=items.findIndex(x=>x.cod.toUpperCase()===cod);if(j>=0) items[j]=it;else items.push(it);c++;
+  });
+  items.sort((a,b)=>a.insumo.localeCompare(b.insumo,"es"));
+  return c;
+}
+
+/* ---------- tabs y generales ---------- */
+function showTab(t){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  if(t==="usuarios"&&ROLE!=="admin") t="conteo";
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.id==="tab-"+t));
+  if(t==="usuarios") rUsuarios(); else renderAll();
+}
+$("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b) showTab(b.dataset.tab);});
+document.addEventListener("click",e=>{const g=e.target.closest("[data-go]");if(g) showTab(g.dataset.go);});
+function renderAll(){renderConteo();kpis();renderAlertas();renderKardex();renderHist();renderPedido();applyRO();}
+$("btnLimpiar").onclick=()=>{if(confirm("¿Poner en cero todas las cantidades para iniciar un nuevo conteo? Los insumos, el kardex y el historial se mantienen.")){items.forEach(it=>{it.qMp=it.qIn=it.qCnt=0;it.ok=false;it.cts=0;});save();renderAll();toast("Conteo reiniciado");}};
+["fBuscar","fCat","fAlm","fEstado"].forEach(id=>$(id).addEventListener("input",renderConteo));
+$("hFrec").addEventListener("input",()=>{head.frec=$("hFrec").value;save();renderConteo();kpis();});
+["hTienda","hFecha","hResp"].forEach(id=>$(id).addEventListener("input",()=>{head.tienda=$("hTienda").value;head.fecha=$("hFecha").value;head.resp=$("hResp").value;save();}));
+$("diasAlerta").addEventListener("input",()=>{head.dias=+$("diasAlerta").value||7;save();renderAll();});
+let tt;function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2600);}
+
+/* ===== Supabase: inicio de sesión, perfiles y usuarios ===== */
+const CFG=window.INV_CONFIG||{}, CLOUD=!!(CFG.supabaseUrl&&CFG.supabaseKey), RID=CFG.tienda||'sagrado';
+const ROLES={admin:'Administrador',editor:'Editor',lector:'Solo lectura'};
+let sb=null, saveT=null, ROLE='admin', ME={id:'local',email:'',nombre:''}, US=null, uOpen=null;
+const qs=s=>document.querySelector(s);
+function syncSt(t,c){const e=$("sync");if(e){e.textContent=t;e.className='sync '+(c||'');}}
+function cloudSave(){if(!CLOUD||!sb||ROLE==='lector')return;clearTimeout(saveT);syncSt('Guardando…');saveT=setTimeout(pushCloud,800);}
+async function pushCloud(){
+  clearTimeout(saveT);saveT=null;
+  const {error}=await sb.from('inventario_datos').upsert({tienda:RID,datos:{items,head,hist,movs}});
+  if(error)syncSt('Error al guardar: '+error.message,'bad');
+  else syncSt('Guardado en Supabase · '+new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}),'ok');
+}
+function showLogin(msg){$("login").hidden=false;const m=$("lMsg");m.className=msg?'msg bad':'msg';m.textContent=msg||'';setTimeout(()=>$("lEmail").focus(),50);}
+function rWho(){
+  $("who").textContent=ME.nombre?`${String(ME.nombre).split(' ')[0]} · ${ROLES[ROLE]}`:'';
+  $("tUsuarios").hidden=ROLE!=="admin"||!CLOUD;
+}
+function applyRO(){
+  const ro=ROLE==='lector';document.body.classList.toggle('ro',ro);
+  if(ro)document.querySelectorAll('input.q,#fMov input,#fMov select,#fMov button,#hTienda,#hFecha,#hResp').forEach(e=>e.disabled=true);
+}
+async function enter(user){
+  syncSt('Cargando datos…');
+  const {data:pf,error:pe}=await sb.from('perfiles').select('rol,nombre,activo').eq('id',user.id).maybeSingle();
+  if(pe)return showLogin('No se pudo leer tu perfil: '+pe.message);
+  if(!pf||!pf.activo){await sb.auth.signOut();return showLogin('Tu usuario no tiene un perfil activo. Pide acceso al administrador.');}
+  ROLE=pf.rol;ME={id:user.id,email:user.email,nombre:pf.nombre||user.email};
+  const {data,error}=await sb.from('inventario_datos').select('datos').eq('tienda',RID).maybeSingle();
+  if(error)return showLogin('No se pudo leer la base de datos: '+error.message);
+  if(data&&data.datos&&Array.isArray(data.datos.items)){const d=data.datos;items=d.items;hist=d.hist||[];movs=d.movs||[];head=Object.assign(head,d.head||{});}
+  else if(ROLE==='lector'){await sb.auth.signOut();return showLogin('Todavía no hay datos cargados. Pide al administrador que ingrese primero.');}
+  else{items=SEED.map(x=>Object.assign({},x));items.forEach(normalize);seedHistory();await pushCloud();}
+  $("login").hidden=true;$("logout").hidden=false;
+  startApp();if(!saveT)syncSt('Conectado a Supabase','ok');
+}
+async function boot(){
+  if(!CLOUD){load();ME={id:'local',email:'',nombre:''};ROLE='admin';syncSt('Modo local (solo este navegador)');$("tUsuarios").hidden=true;return startApp();}
+  if(!window.supabase)return showLogin('No se pudo cargar la librería de Supabase. Revisa tu conexión y recarga.');
+  sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey);
+  const {data}=await sb.auth.getSession();
+  if(data&&data.session)enter(data.session.user);else showLogin();
+}
+$("loginForm").addEventListener('submit',async e=>{
+  e.preventDefault();if(!sb)return;const b=$("lBtn");b.disabled=true;b.textContent='Ingresando…';
+  const {data,error}=await sb.auth.signInWithPassword({email:$("lEmail").value.trim(),password:$("lPass").value});
+  b.disabled=false;b.textContent='Ingresar';
+  if(error)return showLogin(/invalid/i.test(error.message)?'Correo o contraseña incorrectos.':error.message);
+  enter(data.user);
+});
+$("logout").addEventListener('click',async()=>{if(saveT)await pushCloud();await sb.auth.signOut();location.reload();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&saveT&&sb)pushCloud();});
+
+/* ---------- pestaña Usuarios (solo administrador) ---------- */
+async function api(accion,d={}){
+  const {data,error}=await sb.functions.invoke('admin-usuarios',{body:{accion,...d}});
+  if(error){let m=error.message;try{const j=await error.context.json();m=j.error||m;}catch(x){}throw new Error(m);}
+  if(data&&data.error)throw new Error(data.error);
+  return data;
+}
+const fdt=s=>s?new Date(s).toLocaleString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Nunca';
+function uMsg(id,t,c){const e=$(id);if(e){e.className='msg '+(c||'ok');e.textContent=t;}}
+function genPass(){const a='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';const r=new Uint32Array(12);crypto.getRandomValues(r);r.forEach(x=>s+=a[x%a.length]);return s.slice(0,4)+'-'+s.slice(4,8)+'-'+s.slice(8);}
+function rUsuarios(){
+  const el=$("tab-usuarios");if(ROLE!=='admin'||!CLOUD){el.innerHTML='';return;}
+  const P=[['Ver conteo, alertas, kardex, historial y pedido',1,1,1],['Exportar a Excel, CSV, WhatsApp o correo',1,1,1],['Contar, agregar o editar insumos y cargar Excel',1,1,0],['Registrar entradas, salidas, mermas y pedidos',1,1,0],['Guardar o eliminar conteos del historial',1,1,0],['Gestionar usuarios y perfiles',1,0,0]];
+  el.innerHTML=`<section class="card"><h3>Usuarios</h3><p class="hint" style="margin:0 0 10px">Son los mismos usuarios de Food Cost: un cambio aquí aplica en las dos apps. Un usuario inactivo no puede ingresar, pero conserva su cuenta.</p><div id="uList"><p class="hint">Cargando usuarios…</p></div><p class="msg" id="uMsg" style="margin-top:10px"></p></section>
+  <div class="two"><section class="card"><h3>Nuevo usuario</h3><form class="ufields" id="uNew" novalidate>
+    <label>Nombre<input id="nNom" autocomplete="off" placeholder="Ej. María Quispe"></label>
+    <label>Correo<input id="nMail" type="email" autocomplete="off" placeholder="nombre@correo.com"></label>
+    <label>Contraseña temporal<span class="row" style="gap:8px"><input id="nPass" autocomplete="new-password" style="flex:1 1 160px" placeholder="Mínimo 8 caracteres"><button type="button" data-u="gen">Generar</button></span></label>
+    <label>Perfil<select id="nRol"><option value="editor">Editor</option><option value="lector">Solo lectura</option></select></label>
+    <button class="primary" type="submit" id="nBtn">Crear usuario</button><p class="msg" id="nMsg"></p></form>
+    <p class="hint">Entrega la contraseña temporal por un canal privado. Si la olvidan, asígnales una nueva desde la lista.</p></section>
+  <section class="card"><h3>Perfiles y permisos</h3><div class="table-wrap" style="max-height:none;box-shadow:none"><table class="perm"><thead><tr><th>Permiso</th><th><span class="rol admin">Administrador</span></th><th><span class="rol editor">Editor</span></th><th><span class="rol lector">Solo lectura</span></th></tr></thead><tbody>
+  ${P.map(([t,...v])=>`<tr><td>${t}</td>${v.map(x=>`<td class="${x?'yes':'no'}">${x?'✓':'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></div>`;
+  loadUsers();
+}
+async function loadUsers(){try{US=(await api('listar')).usuarios;drawUsers();}catch(e){const l=$("uList");if(l)l.innerHTML='';uMsg('uMsg',e.message,'bad');}}
+function drawUsers(){
+  const l=$("uList");if(!l)return;
+  l.innerHTML=`<div class="table-wrap" style="max-height:none"><table><thead><tr><th>Usuario</th><th>Perfil</th><th>Estado</th><th>Último ingreso</th><th style="text-align:right">Acciones</th></tr></thead><tbody>
+  ${US.map(u=>{const self=u.id===ME.id||u.rol==='admin';return `<tr><td><b>${esc(u.nombre||u.email)}</b>${u.id===ME.id?' <small class="hint">(tú)</small>':''}<br><small style="color:var(--muted)">${esc(u.email)}</small></td>
+  <td>${self?`<span class="rol ${u.rol}">${ROLES[u.rol]}</span>`:`<select data-u="rol" data-id="${u.id}">${['editor','lector'].map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${ROLES[r]}</option>`).join('')}</select>`}</td>
+  <td>${self?'<span class="st green">Activo</span>':`<button class="small sbtn ${u.activo?'on':'off'}" data-u="act" data-id="${u.id}">${u.activo?'Activo':'Inactivo'}</button>`}</td>
+  <td style="white-space:nowrap">${fdt(u.ultimo)}</td>
+  <td><div class="actions" style="justify-content:flex-end"><button class="small" data-u="pw" data-id="${u.id}">Contraseña</button>${self?'':`<button class="small danger" data-u="del" data-id="${u.id}">Eliminar</button>`}</div>
+  ${uOpen&&uOpen.id===u.id?(uOpen.k==='pw'?`<div class="inl"><input id="pwNew" placeholder="Nueva contraseña (mín. 8)" autocomplete="new-password"><button class="small" data-u="pwGen">Generar</button><button class="small primary" data-u="pwOk" data-id="${u.id}">Guardar</button><button class="small" data-u="x">Cancelar</button></div>`:`<div class="inl"><span>¿Eliminar a <b>${esc(u.email)}</b>? No se puede deshacer.</span><button class="small primary" style="background:var(--red);border-color:var(--red)" data-u="delOk" data-id="${u.id}">Sí, eliminar</button><button class="small" data-u="x">Cancelar</button></div>`):''}</td></tr>`;}).join('')}
+  </tbody></table></div>`;
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-u]');if(!b)return;e.preventDefault();
+  const k=b.dataset.u,id=b.dataset.id,u=US&&US.find(x=>x.id===id);
+  if(k==='gen'){$("nPass").value=genPass();return;}
+  if(k==='pwGen'){$("pwNew").value=genPass();return;}
+  if(k==='x'){uOpen=null;return drawUsers();}
+  if(k==='pw'||k==='del'){uOpen={id,k};drawUsers();if(k==='pw')$("pwNew").focus();return;}
+  b.disabled=true;
+  try{
+    if(k==='act'){await api('actualizar',{id,activo:!u.activo});u.activo=!u.activo;uMsg('uMsg',`${u.email} ahora está ${u.activo?'activo':'inactivo'}.`);}
+    if(k==='pwOk'){const p=$("pwNew").value;if(p.length<8)throw new Error('La contraseña debe tener al menos 8 caracteres.');await api('password',{id,password:p});uOpen=null;uMsg('uMsg',`Contraseña de ${u.email} actualizada. Compártela por un canal privado.`);}
+    if(k==='delOk'){await api('eliminar',{id});US=US.filter(x=>x.id!==id);uOpen=null;uMsg('uMsg',`Usuario ${u.email} eliminado.`);}
+    drawUsers();
+  }catch(err){b.disabled=false;uMsg('uMsg',err.message,'bad');}
+});
+document.addEventListener('change',e=>{
+  const x=e.target;if(x.dataset.u!=='rol')return;
+  const u=US.find(q=>q.id===x.dataset.id),prev=u.rol;x.disabled=true;
+  api('actualizar',{id:u.id,rol:x.value}).then(()=>{u.rol=x.value;uMsg('uMsg',`${u.email} ahora es ${ROLES[u.rol]}.`);}).catch(err=>{x.value=prev;uMsg('uMsg',err.message,'bad');}).finally(()=>x.disabled=false);
+});
+document.addEventListener('submit',async e=>{
+  if(e.target.id!=='uNew')return;e.preventDefault();
+  const nombre=$("nNom").value.trim(),email=$("nMail").value.trim().toLowerCase(),password=$("nPass").value,rol=$("nRol").value,btn=$("nBtn");
+  if(!nombre)return uMsg('nMsg','Escribe el nombre.','bad');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return uMsg('nMsg','Escribe un correo válido.','bad');
+  if(password.length<8)return uMsg('nMsg','La contraseña debe tener al menos 8 caracteres.','bad');
+  btn.disabled=true;btn.textContent='Creando…';
+  try{await api('crear',{nombre,email,password,rol});e.target.reset();uMsg('nMsg',`Usuario creado: ${email} (${ROLES[rol]}). Entrégale su contraseña temporal.`);await loadUsers();}
+  catch(err){uMsg('nMsg',err.message,'bad');}
+  finally{btn.disabled=false;btn.textContent='Crear usuario';}
+});
+
+function startApp(){
+$("hTienda").value=head.tienda;$("hFecha").value=head.fecha||today();$("hResp").value=head.resp;$("diasAlerta").value=head.dias||7;
+head.fecha=$("hFecha").value;FM.fecha.value=today();
+refreshFilters();$("hFrec").value=head.frec||"";
+rWho();if(CLOUD)$("lnkFC").hidden=false;
+renderAll();
+}
+boot();
+})();
+</script>
+</body>
+</html>
