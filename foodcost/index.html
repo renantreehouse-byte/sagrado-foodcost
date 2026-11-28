@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Food Cost – Control de costos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: herramienta de trabajo de cocina, directa, sin adornos
+   IDEA: la ficha técnica y el kardex de un jefe de cocina
+   PICTURE: barras de food cost por plato cruzadas por la línea de meta
+   COLOUR and TYPE: verde andino profundo, amarillo ají como acento, rojo pérdida; Archivo + Inter
+   LAYOUT: encabezado verde con configuración y pestañas; contenido en tarjetas a 1240px */
+:root{color-scheme:light dark;
+--bg:light-dark(#f4f6f2,#0e1410);--card:light-dark(#ffffff,#162019);--ink:light-dark(#15211a,#e5ece6);
+--mut:light-dark(#5b6a60,#98a89e);--line:light-dark(#dde4dd,#28342c);--soft:light-dark(#eef3ee,#1b271f);
+--g:#1f4d36;--g3:color-mix(in srgb,var(--g) 68%,#000);--acc:#e0a800;
+--ok:light-dark(#1d8048,#4cc47f);--okb:light-dark(#e3f4e9,#163524);
+--warn:light-dark(#a86b00,#f2b705);--warnb:light-dark(#fdf3d6,#3a3014);
+--bad:light-dark(#c0392b,#ff7466);--badb:light-dark(#fde7e4,#3e1c19)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip;font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:Archivo,Inter,sans-serif;line-height:1.1;margin:0;text-wrap:balance}
+header{background:var(--g);color:#fff;padding:22px max(4vw,16px) 0}
+.hwrap,.wrap{max-width:1240px;margin:0 auto}
+.htop{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:end;justify-content:space-between}
+h1{font-size:clamp(26px,4vw,36px);font-weight:800}
+h1 small{display:block;font:500 15px/1.4 Inter,sans-serif;color:#cfe6d6;margin-top:6px}
+.cfg{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;background:var(--g3);padding:10px 14px;border-radius:12px}
+.cfg label{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
+.cfg input[type=number]{width:84px;background:#fff;color:#15211a;border:0}
+.cfg input[type=checkbox]{width:22px;height:22px;accent-color:var(--acc)}
+nav{display:flex;gap:4px;margin-top:20px;overflow-x:auto}
+nav button{flex:none;background:transparent;color:#d6eadc;border:0;padding:12px 18px;font:600 15px Inter,sans-serif;border-radius:10px 10px 0 0;cursor:pointer;min-height:44px}
+nav button[aria-selected=true]{background:var(--bg);color:var(--ink)}
+nav button:focus-visible{outline:3px solid var(--acc);outline-offset:-3px}
+main{padding:24px max(4vw,16px) 56px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:clamp(16px,2.4vw,24px);margin-bottom:20px}
+.card h2{font-size:22px;margin-bottom:4px}.card h3{font-size:18px;margin-bottom:10px}
+.sub{color:var(--mut);font-size:14px;margin:0 0 14px}
+input,select{font:16px Inter,sans-serif;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:42px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+input[type=number]{text-align:right}
+.btn{font:600 15px Inter,sans-serif;border-radius:10px;border:1px solid var(--line);background:var(--soft);color:var(--ink);padding:10px 16px;min-height:44px;cursor:pointer}
+.btn.pri{background:var(--g);color:#fff;border-color:var(--g)}
+.btn.del{background:transparent;color:var(--bad);border-color:transparent;padding:6px 10px;font-size:20px;line-height:1}
+.btn.del:hover{background:var(--badb)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th{font-size:13px;font-weight:600;color:var(--mut);text-align:left;padding:8px;border-bottom:2px solid var(--line);vertical-align:bottom}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.n,th.n{text-align:right;white-space:nowrap}
+tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:0}
+.minw{min-width:760px}.minw2{min-width:1000px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-weight:700;font-size:14px;white-space:nowrap}
+.pill.ok{background:var(--okb)}.pill.warn{background:var(--warnb)}.pill.bad{background:var(--badb)}
+.alert{border-radius:14px;padding:18px 20px;margin-bottom:20px;border:1px solid}
+.alert.bad{background:var(--badb);border-color:var(--bad);color:var(--ink)}
+.alert.ok{background:var(--okb);border-color:var(--ok);color:var(--ink)}
+.alert h2{font-size:20px;margin-bottom:6px}.alert p{margin:0 0 8px}
+.alert ol{margin:6px 0 0;padding-left:22px}.alert li{margin:2px 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:14px;margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.kpi span{display:block;font-size:14px;color:var(--mut);font-weight:500}
+.kpi b{display:block;font:800 clamp(24px,3vw,30px)/1.15 Archivo,sans-serif;margin:4px 0 2px;white-space:nowrap}
+.kpi small{color:var(--mut);font-size:13px}
+.bars{display:grid;gap:10px;margin-top:8px}
+.brow{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) 64px;gap:12px;align-items:center}
+.bl{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bv{text-align:right;font-weight:700;white-space:nowrap}
+.track{position:relative;height:30px;background:var(--soft);border-radius:6px}
+.bar{position:absolute;inset:0 auto 0 0;border-radius:6px;transition:width .35s ease}
+.bar.ok{background:var(--ok)}.bar.warn{background:var(--acc)}.bar.bad{background:var(--bad)}
+.ml{position:absolute;top:-5px;bottom:-5px;width:0;border-left:2px dashed var(--ink)}
+.mtag{position:absolute;bottom:2px;transform:translateX(-50%);font-size:13px;font-weight:700;white-space:nowrap}
+.brow.head .track{background:none;height:22px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--mut);margin-top:14px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start}
+.res{display:grid;gap:12px}
+.res div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.res div span{color:var(--mut)}.res div b{white-space:nowrap}
+.big{font:800 clamp(40px,6vw,56px)/1 Archivo,sans-serif;margin:4px 0 8px}
+.fields{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px;margin-bottom:16px}
+.fields label{font-size:14px;font-weight:600;color:var(--mut);display:grid;gap:4px}
+.note{font-size:13px;color:var(--mut);margin-top:10px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 12px 10px 18px;border-radius:12px;display:none;gap:12px;align-items:center;box-shadow:0 8px 24px #0004;z-index:9}
+.toast.show{display:flex}.toast button{background:var(--acc);color:#15211a;border:0}
+.hide{display:none!important}
+.brand{display:flex;gap:16px;align-items:center}
+.logo{flex:none;width:68px;height:68px;border-radius:50%;background:var(--g3);display:grid;place-items:center;overflow:hidden;box-shadow:0 0 0 3px var(--acc)}
+.logo img{width:100%;height:100%;object-fit:cover}
+.bname{font:800 15px/1.2 Archivo,sans-serif;color:var(--acc);letter-spacing:.02em}
+.btn.ghost{background:transparent;color:#fff;border-color:#ffffff55;min-height:40px;padding:6px 14px}
+.bpanel{margin-top:16px;background:var(--g3);border-radius:12px;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px 16px;align-items:end}
+.bpanel label{display:grid;gap:4px;font-size:14px;font-weight:600}
+.bpanel input:not([type=color]){background:#fff;color:#15211a;border:0}
+.bpanel input[type=color]{padding:2px;height:42px;background:#fff;border:0}
+.imp{border:2px dashed var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;background:var(--soft)}
+.imp .row label.btn{display:inline-flex;align-items:center}
+.imp input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.cols{display:flex;flex-wrap:wrap;gap:6px}.cols code{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:13px}
+.msg{font-size:14px;border-radius:10px;padding:10px 12px;margin:0}.msg:empty{display:none}
+.msg.ok{background:var(--okb);color:var(--ink)}.msg.bad{background:var(--badb);color:var(--ink)}
+.sync{font-size:13px;color:#d6eadc;display:flex;align-items:center;gap:6px}
+.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:#9fb3a7}
+.sync.ok::before{background:#4cc47f}.sync.bad::before{background:#ff7466}.sync.bad{color:#ffd2cc}
+.login{position:fixed;inset:0;z-index:20;background:var(--g);display:grid;place-items:center;padding:16px}
+.lcard{background:var(--card);color:var(--ink);border-radius:18px;padding:28px;width:min(100%,400px);display:grid;gap:14px;box-shadow:0 20px 50px #0005}
+.lcard label{display:grid;gap:4px;font-size:14px;font-weight:600;color:var(--mut)}
+.lcard h2{font-size:26px}.lcard .bname{color:var(--g)}
+input:disabled,select:disabled,button:disabled{opacity:.55;cursor:not-allowed}
+.who{font-size:13px;color:#fff;background:#ffffff1f;border-radius:99px;padding:4px 12px;white-space:nowrap}
+.who:empty{display:none}
+.ufields{display:grid;gap:12px}.ufields label{display:grid;gap:4px;font-size:14px;font-weight:600;color:var(--mut)}
+.rol{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;font-weight:700;white-space:nowrap}
+.rol.admin{background:var(--g);color:#fff}.rol.editor{background:var(--okb);color:var(--ok)}.rol.lector{background:var(--soft);color:var(--mut)}
+.st{border:0;border-radius:99px;padding:4px 12px;font:700 13px Inter,sans-serif;cursor:pointer;min-height:32px}
+.st.on{background:var(--okb);color:var(--ok)}.st.off{background:var(--badb);color:var(--bad)}
+.uact{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.uact .btn{min-height:36px;padding:6px 12px;font-size:14px}
+.inl{background:var(--soft);border-radius:10px;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.inl input{flex:1 1 180px;min-height:38px}
+.perm td,.perm th{text-align:center}.perm td:first-child,.perm th:first-child{text-align:left}
+.yes{color:var(--ok);font-weight:800}.no{color:var(--mut)}
+footer{text-align:center;color:var(--mut);font-size:13px;padding:0 16px 32px}
+@media(max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.brow{grid-template-columns:minmax(0,92px) minmax(0,1fr) 52px;gap:8px}.bl{font-size:13px}.fields{grid-template-columns:minmax(0,1fr)}table{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:9em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:8.5em;margin-inline-start:-9em;white-space:normal;color:var(--mut);font-size:13px}.stack td:empty{display:none}.stack tfoot td{padding-inline-start:0}}
+@media(prefers-reduced-motion:reduce){.bar{transition:none}}
+</style>
+<script>
+/* ===== CONFIGURACIÓN SUPABASE =====
+   Pega aquí los datos de tu proyecto (Supabase > Project Settings > API Keys / Data API).
+   Si los dejas vacíos, la app funciona en "modo local" y guarda solo en este navegador. */
+window.FOODCOST_CONFIG={
+  supabaseUrl:'https://ofqgeeihfjesasvxmudo.supabase.co',          // ej. https://abcdefghijkl.supabase.co
+  supabaseKey:'sb_publishable_yzg9tUOPT4OvvEf4CkETXA_iiIZODMk',          // clave publicable: sb_publishable_...
+  restaurante:'sagrado'    // identificador del local dentro de la tabla
+};
+</script>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;const t=c.closest('table');c.dataset.l=t.tHead?.rows[0]?.cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header>
+ <div class="hwrap">
+  <div class="htop">
+   <div class="brand"><div class="logo" id="logo"></div><div><div class="bname" id="bname"></div><h1>Food Cost<small>Control de costos de ventas y operaciones · <span id="btag"></span></small></h1></div></div>
+   <div class="cfg">
+    <span class="sync" id="sync" role="status"></span>
+    <span class="who" id="who"></span>
+    <label class="hide" id="demoAs">Ver como <select id="demoRol" style="width:auto;min-height:36px;padding:4px 8px;background:#fff;color:#15211a;border:0"><option value="admin">Administrador</option><option value="editor">Editor</option><option value="lector">Solo lectura</option></select></label>
+    <button class="btn ghost" id="brandBtn" aria-expanded="false">Marca</button>
+    <a class="btn ghost hide" id="toPortal" href="../" style="text-decoration:none;display:inline-flex;align-items:center">Portal</a>
+    <button class="btn ghost hide" id="logout" title="Cerrar sesión">Salir</button>
+    <label for="meta">Meta de Food Cost % <input id="meta" type="number" step="0.5" min="1" max="99" inputmode="decimal"></label>
+    <label for="igv"><input id="igv" type="checkbox"> Precios incluyen IGV (18%)</label>
+   </div>
+  </div>
+  <div class="bpanel hide" id="brandPanel">
+   <label>Nombre del restaurante<input data-t="brand" data-f="nombre" id="bN"></label>
+   <label>Eslogan o ubicación<input data-t="brand" data-f="tag" id="bT"></label>
+   <label>Color de marca<input type="color" data-t="brand" data-f="color" id="bC"></label>
+   <div class="row"><label class="btn ghost" for="bL" style="cursor:pointer">Subir logo</label><input type="file" id="bL" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0"><button class="btn ghost" id="bLx">Quitar logo</button></div>
+  </div>
+  <nav role="tablist">
+   <button role="tab" data-tab="resumen" id="t-resumen">Resumen</button>
+   <button role="tab" data-tab="insumos" id="t-insumos">Insumos</button>
+   <button role="tab" data-tab="recetas" id="t-recetas">Recetas</button>
+   <button role="tab" data-tab="ventas" id="t-ventas">Ventas y consumo real</button>
+   <button role="tab" data-tab="usuarios" id="t-usuarios" class="hide">Usuarios</button>
+  </nav>
+ </div>
+</header>
+<main><div class="wrap">
+ <section id="p-resumen" role="tabpanel"></section>
+ <section id="p-insumos" role="tabpanel" class="hide"></section>
+ <section id="p-recetas" role="tabpanel" class="hide"></section>
+ <section id="p-ventas" role="tabpanel" class="hide"></section>
+ <section id="p-usuarios" role="tabpanel" class="hide"></section>
+ <p class="note">Datos de ejemplo de una semana de operación. <span id="storeNote">Los cambios se guardan en este navegador.</span> <button class="btn" id="reset" style="margin-left:8px">Restaurar datos de ejemplo</button></p>
+</div></main>
+<footer id="foot"></footer>
+<div class="login hide" id="login"><form class="lcard" id="loginForm">
+ <div><div class="bname">Sagrado</div><h2>Food Cost</h2><p class="sub" style="margin:6px 0 0">Ingresa con el usuario que te asignó la gerencia.</p></div>
+ <label>Correo<input type="email" id="lEmail" autocomplete="username" required></label>
+ <label>Contraseña<input type="password" id="lPass" autocomplete="current-password" required></label>
+ <button class="btn pri" type="submit" id="lBtn">Ingresar</button>
+ <p class="msg" id="lMsg"></p>
+</form></div>
+<div class="toast" id="toast"><span id="toastMsg"></span><button class="btn" id="undo">Deshacer</button></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
+<script>
+{
+const IGV=0.18, KEY='foodcost-sagrado-v2';
+const BRAND={nombre:'Sagrado',tag:'Restaurante · Plaza de Armas, Cusco',color:'#1f4d36',logo:''};
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const n=v=>{v=parseFloat(String(v).replace(',','.'));return isFinite(v)?v:0};
+const r1=x=>Math.round(x*10)/10;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf2=new Intl.NumberFormat('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nfq=new Intl.NumberFormat('es-PE',{maximumFractionDigits:3});
+const S_=v=>'S/ '+nf2.format(v);
+const P=v=>nf2.format(v*100).replace(/0$/,'')+'%';
+const Q=v=>nfq.format(v);
+let S, tab='resumen', snap=null, tTimer;
+
+/* ---------- cálculos ---------- */
+const insById=id=>S.insumos.find(i=>i.id===id);
+const mf=i=>1/(1-Math.min(Math.max(n(i.merma),0),99)/100);
+const aprov=i=>n(i.costo)*mf(i);
+const costoRec=r=>r.items.reduce((s,it)=>{const i=insById(it.ins);return s+(i?n(it.cant)*aprov(i):0)},0);
+const neto=r=>S.igv?n(r.precio)/(1+IGV):n(r.precio);
+const fc=r=>{const p=neto(r);return p>0?costoRec(r)/p:0};
+const meta=()=>n(S.meta)/100;
+const sug=r=>{const m=meta();if(m<=0)return 0;const pn=costoRec(r)/m;return S.igv?pn*(1+IGV):pn};
+const cls=f=>{const m=n(S.meta);const p=f*100;return p<=m?'ok':p<=m+5?'warn':'bad'};
+function consTeor(){const t={};S.recetas.forEach(r=>{const u=n(S.ventas[r.id]);r.items.forEach(it=>{const i=insById(it.ins);if(i)t[i.id]=(t[i.id]||0)+u*n(it.cant)*mf(i)})});return t}
+function totals(){
+ const teor=consTeor();let ventas=0,costoT=0,uds=0;
+ S.recetas.forEach(r=>{const u=n(S.ventas[r.id]);uds+=u;ventas+=u*neto(r);costoT+=u*costoRec(r)});
+ let costoR=0;
+ const filas=S.insumos.map(i=>{const v=S.inv[i.id]||{};const real=n(v.ini)+n(v.comp)-n(v.fin);const t=teor[i.id]||0;const c=n(i.costo);costoR+=real*c;return{i,real,t,du:real-t,ds:(real-t)*c,vr:real*c,vt:t*c}});
+ return{ventas,costoT,costoR,uds,fcT:ventas?costoT/ventas:0,fcR:ventas?costoR/ventas:0,filas};
+}
+
+/* ---------- datos de ejemplo ---------- */
+function seed(){
+ const ins=[['Lomo de res','kg',58,12],['Cebolla roja','kg',3.5,10],['Tomate','kg',4,8],['Papa amarilla','kg',4.5,18],['Arroz','kg',4.2,0],['Pescado (corvina)','kg',45,35],['Limón','kg',6,50],['Ají amarillo','kg',8,25],['Gallina (pechuga)','kg',16,30],['Leche evaporada','L',7.5,0],['Camote','kg',3,15],['Culantro','kg',10,30],['Aceite vegetal','L',9,0],['Maíz morado','kg',7,0],['Piña','kg',4,40],['Azúcar','kg',3.8,0],['Trucha','kg',22,40],['Lomo de alpaca','kg',38,15],['Quinua','kg',9,0],['Queso fresco','kg',22,0],['Choclo','kg',3.5,45],['Rocoto','kg',6,20],['Mantequilla','kg',32,0],['Pisco quebranta','L',45,0],['Huevo','und',0.6,0]];
+ const insumos=ins.map(([nombre,unidad,costo,merma])=>({id:uid(),nombre,unidad,costo,merma}));
+ const by=x=>insumos.find(i=>i.nombre===x).id;
+ const rec=[
+  ['Lomo saltado',48,[['Lomo de res',.18],['Cebolla roja',.08],['Tomate',.08],['Papa amarilla',.2],['Arroz',.1],['Aceite vegetal',.03],['Ají amarillo',.01],['Culantro',.005]]],
+  ['Ceviche clásico',45,[['Pescado (corvina)',.16],['Limón',.12],['Cebolla roja',.06],['Ají amarillo',.01],['Camote',.1],['Choclo',.08],['Culantro',.005]]],
+  ['Ají de gallina',34,[['Gallina (pechuga)',.18],['Ají amarillo',.05],['Leche evaporada',.08],['Cebolla roja',.05],['Papa amarilla',.15],['Arroz',.1],['Aceite vegetal',.02]]],
+  ['Chicha morada',10,[['Maíz morado',.05],['Piña',.08],['Azúcar',.04],['Limón',.02]]],
+  ['Trucha a la plancha',42,[['Trucha',.25],['Papa amarilla',.2],['Tomate',.05],['Cebolla roja',.03],['Limón',.02],['Mantequilla',.015],['Aceite vegetal',.02]]],
+  ['Quinotto con queso',36,[['Quinua',.12],['Queso fresco',.06],['Leche evaporada',.05],['Mantequilla',.02],['Cebolla roja',.03],['Ají amarillo',.01],['Aceite vegetal',.01]]],
+  ['Lomo de alpaca',52,[['Lomo de alpaca',.22],['Papa amarilla',.2],['Quinua',.06],['Mantequilla',.015],['Rocoto',.01],['Aceite vegetal',.02]]],
+  ['Pisco sour',28,[['Pisco quebranta',.09],['Limón',.04],['Azúcar',.03],['Huevo',.3]]]];
+ const recetas=rec.map(([nombre,precio,it])=>({id:uid(),nombre,precio,items:it.map(([x,cant])=>({ins:by(x),cant}))}));
+ const ventas={};[320,260,210,480,190,140,120,350].forEach((u,k)=>ventas[recetas[k].id]=u);
+ S={meta:30,igv:true,insumos,recetas,ventas,inv:{},sel:recetas[0].id,brand:{...BRAND}};
+ const t=consTeor(), fac={'Lomo de res':1.06,'Pescado (corvina)':1.08,'Limón':1.12,'Ají amarillo':1.05,'Trucha':1.07,'Pisco quebranta':1.06};
+ insumos.forEach((i,k)=>{const c=t[i.id]||0;const ini=r1(c*.35+k%3),comp=r1(c);const f=fac[i.nombre]||(k%2?1.01:.995);S.inv[i.id]={ini,comp,fin:r1(Math.max(0,ini+comp-c*f))}});
+}
+/* ---------- usuarios y perfiles ---------- */
+const ROLES={admin:'Administrador',editor:'Editor',lector:'Solo lectura'};
+let ROLE='admin', ME={id:'local',email:'renantreehouse@gmail.com',nombre:'Renan Neira'}, US=null, uOpen=null;
+let DEMO_US=[
+ {id:'local',email:'renantreehouse@gmail.com',nombre:'Renan Neira',rol:'admin',activo:true,ultimo:new Date().toISOString()},
+ {id:'d2',email:'cocina@ejemplo.pe',nombre:'Jefe de cocina (ejemplo)',rol:'editor',activo:true,ultimo:'2026-11-19T20:15:00Z'},
+ {id:'d3',email:'compras@ejemplo.pe',nombre:'Logística (ejemplo)',rol:'editor',activo:true,ultimo:'2026-11-18T14:40:00Z'},
+ {id:'d4',email:'contabilidad@ejemplo.pe',nombre:'Contabilidad (ejemplo)',rol:'lector',activo:false,ultimo:null}];
+const okMail=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+async function api(accion,d={}){
+ if(!CLOUD){
+  await new Promise(r=>setTimeout(r,150));const u=DEMO_US.find(x=>x.id===d.id);
+  if(accion==='listar')return{usuarios:DEMO_US.map(x=>({...x}))};
+  if(accion==='crear'){if(DEMO_US.some(x=>x.email===d.email))throw new Error('Ya existe un usuario con ese correo.');DEMO_US.push({id:uid(),email:d.email,nombre:d.nombre,rol:d.rol,activo:true,ultimo:null});return{ok:true}}
+  if(accion==='actualizar'){Object.assign(u,d);return{ok:true}}
+  if(accion==='password')return{ok:true};
+  if(accion==='eliminar'){DEMO_US=DEMO_US.filter(x=>x.id!==d.id);return{ok:true}}
+ }
+ const {data,error}=await sb.functions.invoke('admin-usuarios',{body:{accion,...d}});
+ if(error){let m=error.message;try{const j=await error.context.json();m=j.error||m}catch(e){}throw new Error(m)}
+ if(data&&data.error)throw new Error(data.error);
+ return data;
+}
+const fdt=s=>s?new Date(s).toLocaleString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Nunca';
+function uMsg(id,t,c){const e=$('#'+id);if(e){e.className='msg '+(c||'ok');e.textContent=t}}
+function genPass(){const a='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';const r=new Uint32Array(12);crypto.getRandomValues(r);r.forEach(x=>s+=a[x%a.length]);return s.slice(0,4)+'-'+s.slice(4,8)+'-'+s.slice(8)}
+function rUsuarios(){
+ const el=$('#p-usuarios');if(ROLE!=='admin'){el.innerHTML='';return}
+ const P=[['Ver resumen, insumos, recetas y ventas',1,1,1],['Editar insumos, recetas, ventas e inventario',1,1,0],['Cargar Excel de insumos y ventas',1,1,0],['Cambiar meta de food cost, IGV y marca',1,1,0],['Gestionar usuarios y perfiles',1,0,0]];
+ el.innerHTML=`${CLOUD?'':'<div class="alert ok"><h2>Vista preliminar</h2><p>Estás viendo una demostración con usuarios de ejemplo. En esta vista los cambios no se guardan ni crean cuentas reales. Usa “Ver como” en el encabezado para revisar lo que ve un Editor o un usuario de Solo lectura.</p></div>'}
+ <div class="card"><h2>Usuarios</h2><p class="sub">Solo tú, como administrador, ves esta pestaña. Un usuario inactivo no puede ingresar, pero conserva su cuenta.</p><div id="uList"><p class="sub">Cargando usuarios…</p></div><p class="msg" id="uMsg" style="margin-top:12px"></p></div>
+ <div class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)"><div class="card"><h2>Nuevo usuario</h2><p class="sub">La cuenta queda activa al instante, sin correo de confirmación.</p>
+  <form class="ufields" id="uNew" novalidate>
+   <label>Nombre<input id="nNom" autocomplete="off" placeholder="Ej. María Quispe"></label>
+   <label>Correo<input id="nMail" type="email" autocomplete="off" placeholder="nombre@correo.com"></label>
+   <label>Contraseña temporal<span class="row" style="gap:8px"><input id="nPass" autocomplete="new-password" style="flex:1 1 160px" placeholder="Mínimo 8 caracteres"><button type="button" class="btn" data-u="gen">Generar</button></span></label>
+   <label>Perfil<select id="nRol"><option value="editor">Editor</option><option value="lector">Solo lectura</option></select></label>
+   <button class="btn pri" type="submit" id="nBtn">Crear usuario</button>
+   <p class="msg" id="nMsg"></p>
+  </form><p class="note">Entrega la contraseña temporal por un canal privado (en persona o por mensaje directo). Si la olvidan, puedes asignarles una nueva desde la lista.</p></div>
+ <div class="card"><h2>Perfiles y permisos</h2><p class="sub">Solo existe un administrador. A los demás usuarios les asignas Editor o Solo lectura.</p>
+ <div class="scroll"><table class="perm" style="min-width:440px"><thead><tr><th>Permiso</th><th><span class="rol admin">Administrador</span></th><th><span class="rol editor">Editor</span></th><th><span class="rol lector">Solo lectura</span></th></tr></thead><tbody>
+ ${P.map(([t,...v])=>`<tr><td>${t}</td>${v.map(x=>`<td class="${x?'yes':'no'}">${x?'✓':'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div></div>`;
+ loadUsers();
+}
+async function loadUsers(){try{US=(await api('listar')).usuarios;drawUsers()}catch(e){const l=$('#uList');if(l)l.innerHTML='';uMsg('uMsg',e.message,'bad')}}
+function drawUsers(){
+ const l=$('#uList');if(!l)return;
+ l.innerHTML=`<table class="stack"><thead><tr><th>Usuario</th><th>Perfil</th><th>Estado</th><th>Último ingreso</th><th class="n">Acciones</th></tr></thead><tbody>
+ ${US.map(u=>{const self=u.id===ME.id||u.rol==='admin';return`<tr><td><b>${esc(u.nombre||u.email)}</b>${u.id===ME.id?' <small class="note">(tú)</small>':''}<br><small style="color:var(--mut)">${esc(u.email)}</small></td>
+ <td>${self?`<span class="rol ${u.rol}">${ROLES[u.rol]}</span>`:`<select data-u="rol" data-id="${u.id}" aria-label="Perfil de ${esc(u.email)}" style="width:auto">${['editor','lector'].map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${ROLES[r]}</option>`).join('')}</select>`}</td>
+ <td>${self?'<span class="st on" style="cursor:default">Activo</span>':`<button class="st ${u.activo?'on':'off'}" data-u="act" data-id="${u.id}" title="${u.activo?'Desactivar':'Activar'}">${u.activo?'Activo':'Inactivo'}</button>`}</td>
+ <td style="white-space:nowrap">${fdt(u.ultimo)}</td>
+ <td><div class="uact"><button class="btn" data-u="pw" data-id="${u.id}">Contraseña</button>${self?'':`<button class="btn" data-u="del" data-id="${u.id}" style="color:var(--bad)">Eliminar</button>`}</div>
+ ${uOpen&&uOpen.id===u.id?(uOpen.k==='pw'?`<div class="inl"><input id="pwNew" placeholder="Nueva contraseña (mín. 8)" autocomplete="new-password"><button class="btn" data-u="pwGen">Generar</button><button class="btn pri" data-u="pwOk" data-id="${u.id}">Guardar</button><button class="btn" data-u="x">Cancelar</button></div>`:`<div class="inl"><span>¿Eliminar a <b>${esc(u.email)}</b>? No se puede deshacer.</span><button class="btn" data-u="delOk" data-id="${u.id}" style="background:var(--bad);color:#fff;border-color:var(--bad)">Sí, eliminar</button><button class="btn" data-u="x">Cancelar</button></div>`):''}</td></tr>`}).join('')}
+ </tbody></table>`;
+}
+async function uAction(b){
+ const k=b.dataset.u,id=b.dataset.id,u=US&&US.find(x=>x.id===id);
+ if(k==='gen'){$('#nPass').value=genPass();return}
+ if(k==='pwGen'){$('#pwNew').value=genPass();return}
+ if(k==='x'){uOpen=null;return drawUsers()}
+ if(k==='pw'||k==='del'){uOpen={id,k};drawUsers();if(k==='pw')$('#pwNew')?.focus();return}
+ b.disabled=true;
+ try{
+  if(k==='act'){await api('actualizar',{id,activo:!u.activo});u.activo=!u.activo;uMsg('uMsg',`${u.email} ahora está ${u.activo?'activo':'inactivo'}.`)}
+  if(k==='pwOk'){const p=$('#pwNew').value;if(p.length<8)throw new Error('La contraseña debe tener al menos 8 caracteres.');await api('password',{id,password:p});uOpen=null;uMsg('uMsg',`Contraseña de ${u.email} actualizada. Compártela por un canal privado.`)}
+  if(k==='delOk'){await api('eliminar',{id});US=US.filter(x=>x.id!==id);uOpen=null;uMsg('uMsg',`Usuario ${u.email} eliminado.`)}
+  drawUsers();
+ }catch(e){b.disabled=false;uMsg('uMsg',e.message,'bad')}
+}
+function applyRO(){
+ const ro=ROLE==='lector';
+ ['#meta','#igv','#reset','#brandBtn'].forEach(s=>{const e=$(s);if(e)e.disabled=ro});
+ if(ro){$('#brandPanel').classList.add('hide');document.querySelectorAll('main input,main select,main button[data-a]').forEach(e=>e.disabled=true);document.querySelectorAll('.imp').forEach(e=>e.style.display='none')}
+}
+
+/* ---------- almacenamiento: Supabase o local ---------- */
+const CFG=window.FOODCOST_CONFIG||{}, CLOUD=!!(CFG.supabaseUrl&&CFG.supabaseKey), RID=CFG.restaurante||'sagrado';
+let sb=null, saveT=null;
+function status(t,c){const e=$('#sync');e.textContent=t;e.className='sync '+(c||'')}
+function save(){
+ if(ROLE==='lector')return;
+ try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+ if(CLOUD&&sb){clearTimeout(saveT);status('Guardando…');saveT=setTimeout(pushCloud,800)}
+}
+async function pushCloud(){
+ clearTimeout(saveT);saveT=null;
+ const {error}=await sb.from('foodcost_datos').upsert({restaurante:RID,datos:S});
+ if(error)status('Error al guardar: '+error.message,'bad');
+ else status('Guardado en Supabase · '+new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}),'ok');
+}
+function showLogin(msg){$('#login').classList.remove('hide');const m=$('#lMsg');m.className=msg?'msg bad':'msg';m.textContent=msg||'';setTimeout(()=>$('#lEmail').focus(),50)}
+async function enter(user){
+ status('Cargando datos…');
+ const {data:pf,error:pe}=await sb.from('perfiles').select('rol,nombre,activo').eq('id',user.id).maybeSingle();
+ if(pe)return showLogin('No se pudo leer tu perfil: '+pe.message);
+ if(!pf||!pf.activo){await sb.auth.signOut();return showLogin('Tu usuario no tiene un perfil activo. Pide acceso al administrador.')}
+ ROLE=pf.rol;ME={id:user.id,email:user.email,nombre:pf.nombre||user.email};
+ const {data,error}=await sb.from('foodcost_datos').select('datos').eq('restaurante',RID).maybeSingle();
+ if(error)return showLogin('No se pudo leer la base de datos: '+error.message);
+ if(data&&data.datos&&data.datos.insumos){S=data.datos;S.brand={...BRAND,...(S.brand||{})}}
+ else if(ROLE==='lector'){await sb.auth.signOut();return showLogin('Todavía no hay datos cargados. Pide al administrador que ingrese primero.')}
+ else{seed();await pushCloud()}
+ $('#login').classList.add('hide');$('#logout').classList.remove('hide');$('#toPortal').classList.remove('hide');$('#logout').title='Cerrar sesión de '+(user.email||'');
+ $('#storeNote').textContent='Los cambios se guardan en Supabase y los ve todo el equipo.';
+ start();if(!saveT)status('Conectado a Supabase','ok');
+}
+function start(){syncCfg();rBrand();rWho();show(location.hash.slice(1)||'resumen')}
+function rWho(){
+ $('#who').textContent=ME.nombre?`${String(ME.nombre).split(' ')[0]} · ${ROLES[ROLE]}`:'';
+ $('#t-usuarios').classList.toggle('hide',ROLE!=='admin');
+}
+async function init(){
+ if(!CLOUD){load();status('Modo local (solo este navegador)');$('#demoAs').classList.remove('hide');return start()}
+ if(!window.supabase)return showLogin('No se pudo cargar la librería de Supabase. Revisa tu conexión y recarga.');
+ sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey);
+ const {data}=await sb.auth.getSession();
+ if(data&&data.session)enter(data.session.user);else showLogin();
+}
+$('#loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!sb)return;const b=$('#lBtn');b.disabled=true;b.textContent='Ingresando…';
+ const {data,error}=await sb.auth.signInWithPassword({email:$('#lEmail').value.trim(),password:$('#lPass').value});
+ b.disabled=false;b.textContent='Ingresar';
+ if(error)return showLogin(/invalid/i.test(error.message)?'Correo o contraseña incorrectos.':error.message);
+ enter(data.user);
+});
+$('#logout').addEventListener('click',async()=>{if(saveT)await pushCloud();await sb.auth.signOut();location.reload()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&saveT&&sb)pushCloud()});
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.insumos&&d.recetas){S=d;S.brand={...BRAND,...(d.brand||{})};return}}catch(e){}seed()}
+
+/* ---------- marca ---------- */
+function rBrand(){
+ const b=S.brand, nm=b.nombre||'Mi restaurante';
+ $('#bname').textContent=nm;$('#btag').textContent=b.tag||'';
+ document.documentElement.style.setProperty('--g',/^#[0-9a-f]{6}$/i.test(b.color)?b.color:BRAND.color);
+ $('#logo').innerHTML=b.logo?`<img src="${b.logo}" alt="Logo de ${esc(nm)}">`
+  :`<svg viewBox="0 0 68 68" width="68" height="68" aria-label="Logo de ${esc(nm)}"><g fill="none" stroke="#e0a800" stroke-width="2.2"><circle cx="34" cy="34" r="24"/>${Array.from({length:12},(_,i)=>{const a=i*Math.PI/6,c=Math.cos(a),s=Math.sin(a);return`<line x1="${34+27*c}" y1="${34+27*s}" x2="${34+31*c}" y2="${34+31*s}"/>`}).join('')}</g><text x="34" y="44" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="800" font-size="28" fill="#fff">${esc(nm.trim()[0]||'S').toUpperCase()}</text></svg>`;
+ document.title=nm+' · Food Cost';
+ $('#foot').textContent=`${nm}${b.tag?' · '+b.tag:''} · Herramienta interna de control de food cost`;
+ $('#bN').value=b.nombre;$('#bT').value=b.tag;$('#bC').value=/^#[0-9a-f]{6}$/i.test(b.color)?b.color:BRAND.color;
+}
+
+/* ---------- Excel ---------- */
+const norm=s=>String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+const xn=v=>{if(typeof v==='number')return v;let s=String(v??'').replace(/[^0-9.,-]/g,'');if(s.includes(',')&&s.includes('.'))s=s.replace(/,/g,'');else s=s.replace(',','.');return n(s)};
+async function readRows(file){
+ if(!window.XLSX)throw new Error('No se pudo cargar el lector de Excel. Revisa tu conexión y recarga la página.');
+ const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+ return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});
+}
+function mapCols(rows,spec,need){
+ for(let r=0;r<Math.min(rows.length,15);r++){
+  const h=rows[r].map(norm),m={},used=new Set();
+  for(const[k,re]of Object.entries(spec)){const i=h.findIndex((x,j)=>!used.has(j)&&re.test(x));if(i>=0){m[k]=i;used.add(i)}}
+  if(need.every(k=>k in m))return{m,start:r+1};
+ }
+ return null;
+}
+const SPEC_INS={nombre:/^(insumo|nombre|producto|descripcion|articulo|item|ingrediente)/,costo:/^(costo|precio)/,unidad:/^(unidad|und|um|u\.m|medida)/,merma:/merma/,ini:/inicial/,comp:/^compra/,fin:/final/};
+const SPEC_VEN={plato:/^(plato|producto|descripcion|nombre|articulo|item|receta)/,uds:/(unidad|cantidad|cant|vendid|qty|uds)/,precio:/^(precio|pvp)/};
+function importInsumos(rows,mode){
+ const c=mapCols(rows,SPEC_INS,['nombre','costo']);
+ if(!c)throw new Error('No encontré las columnas "Insumo" y "Costo de compra" en las primeras filas de la hoja.');
+ const {m}=c,seen=new Set();let nuevos=0,act=0;
+ for(const row of rows.slice(c.start)){
+  const nom=String(row[m.nombre]??'').trim();if(!nom)continue;
+  let i=S.insumos.find(x=>norm(x.nombre)===norm(nom));
+  if(!i){i={id:uid(),nombre:nom,unidad:'kg',costo:0,merma:0};S.insumos.push(i);S.inv[i.id]={ini:0,comp:0,fin:0};nuevos++}else if(!seen.has(i.id))act++;
+  seen.add(i.id);
+  i.costo=xn(row[m.costo]);
+  if('unidad'in m&&String(row[m.unidad]).trim())i.unidad=String(row[m.unidad]).trim();
+  if('merma'in m){let v=xn(row[m.merma]);if(v>0&&v<1)v*=100;i.merma=r1(v*10)/10}
+  const inv=S.inv[i.id]||(S.inv[i.id]={ini:0,comp:0,fin:0});
+  for(const k of['ini','comp','fin'])if(k in m&&row[m[k]]!=='')inv[k]=xn(row[m[k]]);
+ }
+ let quitados=0;
+ if(mode==='replace'){const out=S.insumos.filter(i=>!seen.has(i.id));quitados=out.length;S.insumos=S.insumos.filter(i=>seen.has(i.id));out.forEach(i=>delete S.inv[i.id]);S.recetas.forEach(r=>r.items=r.items.filter(it=>seen.has(it.ins)))}
+ if(!seen.size)throw new Error('La hoja no tiene filas con insumos.');
+ return `${seen.size} insumos leídos: ${act} actualizados, ${nuevos} nuevos${quitados?`, ${quitados} eliminados`:''}.`;
+}
+let pend=[];
+function importVentas(rows,mode){
+ const c=mapCols(rows,SPEC_VEN,['plato','uds']);
+ if(!c)throw new Error('No encontré las columnas "Plato" y "Unidades" en las primeras filas de la hoja.');
+ const {m}=c,suma={},precio={};
+ for(const row of rows.slice(c.start)){const p=String(row[m.plato]??'').trim();if(!p)continue;const k=norm(p);suma[k]=suma[k]||{nombre:p,u:0};suma[k].u+=xn(row[m.uds]);if('precio'in m&&xn(row[m.precio]))precio[k]=xn(row[m.precio])}
+ if(!Object.keys(suma).length)throw new Error('La hoja no tiene filas de ventas.');
+ if(mode==='replace')S.recetas.forEach(r=>S.ventas[r.id]=0);
+ let ok=0,tot=0;pend=[];
+ for(const[k,v]of Object.entries(suma)){const r=S.recetas.find(x=>norm(x.nombre)===k);if(r){S.ventas[r.id]=(mode==='add'?n(S.ventas[r.id]):0)+v.u;ok++;tot+=v.u}else pend.push({...v,precio:precio[k]||0})}
+ return `${ok} platos actualizados (${Q(tot)} unidades).`+(pend.length?` Sin receta: ${pend.map(p=>`${p.nombre} (${Q(p.u)})`).join(', ')}.`:'');
+}
+async function onFile(input,kind){
+ const f=input.files[0];if(!f)return;const out=$('#msg-'+kind);
+ try{const rows=await readRows(f);keep('Archivo importado');
+  const mode=$('#mode-'+kind).value;const txt=kind==='ins'?importInsumos(rows,mode):importVentas(rows,mode);
+  save();R[tab]();const o=$('#msg-'+kind);o.className='msg ok';o.innerHTML=esc(`«${f.name}»: `+txt)+(kind==='ven'&&pend.length?' <button class="btn" data-a="mkRec" style="margin-left:6px">Crear recetas para estos platos</button>':'');}
+ catch(e){out.className='msg bad';out.textContent=e.message;snap=null;$('#toast').classList.remove('show')}
+ input.value='';
+}
+const TPL={ins:'Insumo\tUnidad\tCosto de compra\tMerma %\tInv. inicial\tCompras\tInv. final\nLomo de res\tkg\t58\t12\t5\t40\t3.5',ven:'Fecha\tPlato\tUnidades\n2026-11-16\tLomo saltado\t45\n2026-11-16\tCeviche clásico\t38'};
+function impBox(kind){
+ const ins=kind==='ins';
+ return `<div class="imp"><div><h3 style="margin:0 0 4px">${ins?'Cargar insumos desde Excel':'Cargar ventas desde Excel'}</h3><p class="sub" style="margin:0">${ins?'Archivo .xlsx, .xls o .csv. Los insumos se reconocen por nombre: si ya existen se actualizan y conservan sus recetas. Las columnas de inventario son opcionales.':'Archivo .xlsx, .xls o .csv, por ejemplo el reporte de tu sistema de caja. Si un plato aparece en varias filas (por día o por turno), se suman sus unidades.'}</p></div>
+ <div class="cols">${(ins?['Insumo*','Unidad','Costo de compra*','Merma %','Inv. inicial','Compras','Inv. final']:['Plato*','Unidades*','Fecha (opcional)']).map(c=>`<code>${c}</code>`).join('')}</div>
+ <div class="row"><select id="mode-${kind}" style="width:auto;flex:1 1 220px;max-width:320px" aria-label="Modo de carga">${ins?'<option value="merge">Actualizar y agregar</option><option value="replace">Reemplazar toda la lista</option>':'<option value="replace">Reemplazar unidades del periodo</option><option value="add">Sumar a las unidades actuales</option>'}</select>
+ <label class="btn pri" for="file-${kind}" style="cursor:pointer">Elegir archivo Excel</label><input type="file" id="file-${kind}" accept=".xlsx,.xls,.csv">
+ <button class="btn" data-a="tpl" data-k="${kind}">Copiar plantilla</button></div>
+ <p class="msg" id="msg-${kind}"></p></div>`;
+}
+
+/* ---------- Resumen ---------- */
+function rResumen(){
+ const T=totals(), dev=(T.fcR-T.fcT)*100, devS=T.costoR-T.costoT;
+ const top=T.filas.filter(f=>f.ds>0.005).sort((a,b)=>b.ds-a.ds).slice(0,3);
+ const lista=top.length?`<ol>${top.map(f=>`<li><b>${esc(f.i.nombre)}</b>: ${Q(f.du)} ${esc(f.i.unidad)} de más · <b class="bad">${S_(f.ds)}</b></li>`).join('')}</ol>`:'<p>No hay insumos con consumo real mayor al teórico.</p>';
+ const alerta=dev>1
+  ?`<div class="alert bad"><h2>El consumo real supera al teórico en ${nf2.format(dev)} puntos de food cost</h2><p>Se usaron ${S_(devS)} más de lo que indican las recetas para lo vendido. Revisa porciones, mermas no registradas, robos o errores de inventario en estos 3 insumos con mayor desvío:</p>${lista}</div>`
+  :`<div class="alert ok"><h2>Consumo real dentro de la tolerancia (${dev>=0?'+':''}${nf2.format(dev)} pp)</h2><p>La diferencia entre consumo real y teórico no supera 1 punto de food cost. Insumos con mayor desvío:</p>${lista}</div>`;
+ const k=(l,v,s,c='')=>`<div class="kpi"><span>${l}</span><b class="${c}">${v}</b><small>${s}</small></div>`;
+ const mb=T.ventas-T.costoR;
+ const kpis=`<div class="kpis">
+  ${k('Ventas netas',S_(T.ventas),`${Q(T.uds)} unidades · ${S.igv?'sin IGV':'precios sin IGV'}`)}
+  ${k('Food cost teórico',P(T.fcT),S_(T.costoT)+' según recetas',cls(T.fcT))}
+  ${k('Food cost real',P(T.fcR),S_(T.costoR)+' según inventario',cls(T.fcR))}
+  ${k('Desviación real vs teórico',(dev>=0?'+':'')+nf2.format(dev)+' pp',(devS>=0?'Pérdida de ':'Ahorro de ')+S_(Math.abs(devS)),dev>1?'bad':dev>0?'warn':'ok')}
+  ${k('Margen bruto real',S_(mb),(T.ventas?P(mb/T.ventas):'0%')+' de las ventas netas',mb<0?'bad':'')}</div>`;
+ const fcs=S.recetas.map(fc), m=n(S.meta);
+ const max=Math.max(10,Math.ceil(Math.max(m,...fcs.map(f=>f*100))*1.15/10)*10);
+ const L=m/max*100;
+ const bars=`<div class="card"><h2>Food cost por plato</h2><p class="sub">Costo teórico de la receta sobre el precio neto. La línea punteada marca la meta.</p>
+  <div class="bars"><div class="brow head"><span></span><div class="track"><span class="mtag" style="left:${L}%">Meta ${nf2.format(m).replace(/,00$/,'')}%</span></div><span></span></div>
+  ${S.recetas.map((r,i)=>`<div class="brow"><span class="bl" title="${esc(r.nombre)}">${esc(r.nombre)}</span><div class="track"><div class="bar ${cls(fcs[i])}" style="width:${Math.min(100,fcs[i]*100/max*100)}%"></div><div class="ml" style="left:${L}%"></div></div><span class="bv ${cls(fcs[i])}">${P(fcs[i])}</span></div>`).join('')}</div>
+  <div class="legend"><span><i style="background:var(--ok)"></i>En meta o por debajo</span><span><i style="background:var(--acc)"></i>Hasta 5 pp sobre la meta</span><span><i style="background:var(--bad)"></i>Más de 5 pp sobre la meta</span></div></div>`;
+ const tabla=`<div class="card"><h2>Detalle por plato</h2><p class="sub">El precio sugerido es el precio de carta${S.igv?' (con IGV)':''} que lleva el plato exactamente a la meta de food cost.</p>
+  <table class="stack"><thead><tr><th>Plato</th><th class="n">Precio carta</th><th class="n">Precio neto</th><th class="n">Costo porción</th><th class="n">Food cost</th><th class="n">Margen unit.</th><th class="n">Vendidas</th><th class="n">Ventas netas</th><th class="n">Precio sugerido</th></tr></thead><tbody>
+  ${S.recetas.map(r=>{const f=fc(r),c=costoRec(r),p=neto(r),s=sug(r),d=s-n(r.precio);return`<tr><td><b>${esc(r.nombre)}</b></td><td class="n">${S_(n(r.precio))}</td><td class="n">${S_(p)}</td><td class="n">${S_(c)}</td><td class="n"><span class="pill ${cls(f)}">${P(f)}</span></td><td class="n">${S_(p-c)}</td><td class="n">${Q(n(S.ventas[r.id]))}</td><td class="n">${S_(n(S.ventas[r.id])*p)}</td><td class="n"><b>${S_(s)}</b> <small class="${d>0?'bad':'ok'}">${d>0?'+':''}${nf2.format(d)}</small></td></tr>`}).join('')}
+  </tbody></table></div>`;
+ $('#p-resumen').innerHTML=alerta+kpis+bars+tabla;
+}
+
+/* ---------- Insumos ---------- */
+function rInsumos(){
+ $('#p-insumos').innerHTML=`<div class="card"><h2>Insumos</h2><p class="sub">Costo aprovechable = costo de compra ÷ (1 − % merma). Es el costo real de cada unidad que llega al plato.</p>
+ <datalist id="units"><option>kg</option><option>g</option><option>L</option><option>ml</option><option>und</option><option>atado</option><option>lata</option></datalist>
+ <div class="scroll"><table class="minw"><thead><tr><th style="width:34%">Insumo</th><th style="width:12%">Unidad</th><th class="n">Costo de compra (S/ por unidad)</th><th class="n">Merma %</th><th class="n">Costo aprovechable</th><th></th></tr></thead><tbody>
+ ${S.insumos.map(i=>`<tr><td><input data-t="ins" data-id="${i.id}" data-f="nombre" value="${esc(i.nombre)}" aria-label="Nombre"></td><td><input data-t="ins" data-id="${i.id}" data-f="unidad" value="${esc(i.unidad)}" list="units" aria-label="Unidad"></td><td><input type="number" step="any" min="0" inputmode="decimal" data-t="ins" data-id="${i.id}" data-f="costo" value="${n(i.costo)}" aria-label="Costo de compra"></td><td><input type="number" step="any" min="0" max="99" inputmode="decimal" data-t="ins" data-id="${i.id}" data-f="merma" value="${n(i.merma)}" aria-label="Merma"></td><td class="n"><b id="ap-${i.id}"></b></td><td class="n"><button class="btn del" data-a="delIns" data-id="${i.id}" aria-label="Eliminar ${esc(i.nombre)}">×</button></td></tr>`).join('')}
+ </tbody></table></div><div class="row" style="margin-top:14px"><button class="btn pri" data-a="addIns">+ Agregar insumo</button><span class="note" style="margin:0">${S.insumos.length} insumos</span></div></div>
+ <div class="card">${impBox('ins')}</div>`;
+ uInsumos();
+}
+function uInsumos(){S.insumos.forEach(i=>{const e=$('#ap-'+i.id);if(e)e.textContent=S_(aprov(i))+' / '+(i.unidad||'u')})}
+
+/* ---------- Recetas ---------- */
+function rRecetas(){
+ const el=$('#p-recetas');
+ if(!S.recetas.length){el.innerHTML=`<div class="card"><h2>Recetas</h2><p class="sub">No hay recetas.</p><button class="btn pri" data-a="addRec">+ Nueva receta</button></div>`;return}
+ if(!S.recetas.find(r=>r.id===S.sel))S.sel=S.recetas[0].id;
+ const r=S.recetas.find(x=>x.id===S.sel);
+ const opts=S.insumos.map(i=>`<option value="${i.id}">${esc(i.nombre)}</option>`).join('');
+ el.innerHTML=`<div class="card"><div class="row"><label for="selRec" style="font-weight:600">Receta</label><select id="selRec" style="width:auto;flex:1 1 220px;max-width:340px">${S.recetas.map(x=>`<option value="${x.id}" ${x.id===r.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select><button class="btn pri" data-a="addRec">+ Nueva receta</button><button class="btn" data-a="delRec" style="color:var(--bad)">Eliminar receta</button></div></div>
+ <div class="grid2"><div class="card"><h2>Ficha técnica por porción</h2><p class="sub">Cantidades netas en la unidad del insumo; el costo ya incluye la merma.</p>
+  <div class="fields"><label>Nombre del plato<input data-t="rec" data-f="nombre" value="${esc(r.nombre)}"></label><label>Precio de venta (S/)${S.igv?' con IGV':''}<input type="number" step="any" min="0" inputmode="decimal" data-t="rec" data-f="precio" value="${n(r.precio)}"></label></div>
+  <div class="scroll"><table class="minw" style="min-width:600px"><thead><tr><th style="width:40%">Ingrediente</th><th class="n">Cantidad</th><th>Unidad</th><th class="n">Costo</th><th class="n">% del costo</th><th></th></tr></thead><tbody>
+  ${r.items.map((it,k)=>`<tr><td><select data-t="item" data-k="${k}" data-f="ins" aria-label="Insumo">${opts.replace(`value="${it.ins}"`,`value="${it.ins}" selected`)}</select></td><td><input type="number" step="any" min="0" inputmode="decimal" data-t="item" data-k="${k}" data-f="cant" value="${n(it.cant)}" aria-label="Cantidad"></td><td id="iu-${k}"></td><td class="n" id="ic-${k}"></td><td class="n" id="ip-${k}"></td><td class="n"><button class="btn del" data-a="delItem" data-k="${k}" aria-label="Quitar ingrediente">×</button></td></tr>`).join('')}
+  </tbody><tfoot><tr><td colspan="3">Costo por porción</td><td class="n" id="itot"></td><td class="n">100%</td><td></td></tr></tfoot></table></div>
+  <div class="row" style="margin-top:14px"><button class="btn pri" data-a="addItem" ${S.insumos.length?'':'disabled'}>+ Agregar ingrediente</button></div></div>
+  <div class="card"><h2>Resultado</h2><p class="sub">Por porción</p><div class="big" id="rfc"></div><p class="sub" id="rfcn" style="margin-top:-4px"></p>
+   <div class="res"><div><span>Costo por porción</span><b id="rc"></b></div><div><span>Precio neto${S.igv?' (sin IGV)':''}</span><b id="rp"></b></div><div><span>Margen bruto</span><b id="rm"></b></div><div><span>Precio sugerido para meta</span><b id="rs"></b></div></div>
+   <p class="note" id="rsn"></p></div></div>`;
+ uRecetas();
+}
+function uRecetas(){
+ const r=S.recetas.find(x=>x.id===S.sel);if(!r||!$('#rc'))return;
+ const c=costoRec(r),p=neto(r),f=fc(r),s=sug(r);
+ r.items.forEach((it,k)=>{const i=insById(it.ins),v=i?n(it.cant)*aprov(i):0;const u=$('#iu-'+k);if(!u)return;u.textContent=i?i.unidad:'';$('#ic-'+k).textContent=S_(v);$('#ip-'+k).textContent=c?P(v/c):'0%'});
+ $('#itot').textContent=S_(c);
+ const e=$('#rfc');e.textContent=P(f);e.className='big '+cls(f);
+ $('#rfcn').textContent='Food cost · meta '+n(S.meta)+'%';
+ $('#rc').textContent=S_(c);$('#rp').textContent=S_(p);
+ $('#rm').textContent=S_(p-c)+' ('+(p?P((p-c)/p):'0%')+')';
+ $('#rs').textContent=S_(s);
+ const d=s-n(r.precio);
+ $('#rsn').textContent=d>0.005?`Para llegar a la meta habría que subir el precio de carta ${S_(d)}, o bajar el costo por porción a ${S_(p*meta())}.`:`El precio actual cumple la meta con ${S_(-d)} de holgura.`;
+ const o=document.querySelector(`#selRec option[value="${r.id}"]`);if(o)o.textContent=r.nombre||'(sin nombre)';
+}
+
+/* ---------- Ventas y consumo ---------- */
+function rVentas(){
+ $('#p-ventas').innerHTML=`<div class="card"><h2>Unidades vendidas</h2><p class="sub">Ventas del periodo por plato. Escríbelas o cárgalas desde Excel.</p>
+ <div style="margin-bottom:16px">${impBox('ven')}</div>
+ <table class="stack"><thead><tr><th>Plato</th><th class="n">Precio neto</th><th class="n" style="width:160px">Unidades vendidas</th><th class="n">Ventas netas</th><th class="n">Costo teórico</th></tr></thead><tbody>
+ ${S.recetas.map(r=>`<tr><td><b>${esc(r.nombre)}</b></td><td class="n">${S_(neto(r))}</td><td><input type="number" step="1" min="0" inputmode="numeric" data-t="venta" data-id="${r.id}" value="${n(S.ventas[r.id])}" aria-label="Unidades de ${esc(r.nombre)}"></td><td class="n" id="vv-${r.id}"></td><td class="n" id="vc-${r.id}"></td></tr>`).join('')}
+ </tbody><tfoot><tr><td>Total</td><td></td><td class="n" id="vtu"></td><td class="n" id="vtv"></td><td class="n" id="vtc"></td></tr></tfoot></table></div>
+ <div class="card"><h2>Consumo real vs teórico por insumo</h2><p class="sub">Real = inventario inicial + compras − inventario final. Teórico = ventas × receta, con merma. Valorizado al costo de compra.</p>
+ <div class="scroll"><table class="minw2"><thead><tr><th style="width:17%">Insumo</th><th>Und</th><th class="n">Inv. inicial</th><th class="n">Compras</th><th class="n">Inv. final</th><th class="n">Consumo real</th><th class="n">Consumo teórico</th><th class="n">Dif. unidades</th><th class="n">Dif. S/</th></tr></thead><tbody>
+ ${S.insumos.map(i=>{const v=S.inv[i.id]||(S.inv[i.id]={ini:0,comp:0,fin:0});const f=x=>`<td><input type="number" step="any" min="0" inputmode="decimal" data-t="inv" data-id="${i.id}" data-f="${x}" value="${n(v[x])}" aria-label="${x} ${esc(i.nombre)}" style="min-width:84px"></td>`;return`<tr><td><b>${esc(i.nombre)}</b></td><td>${esc(i.unidad)}</td>${f('ini')}${f('comp')}${f('fin')}<td class="n" id="cr-${i.id}"></td><td class="n" id="ct-${i.id}"></td><td class="n" id="cu-${i.id}"></td><td class="n" id="cs-${i.id}"></td></tr>`}).join('')}
+ </tbody><tfoot><tr><td colspan="5">Total valorizado</td><td class="n" id="ctr"></td><td class="n" id="ctt"></td><td></td><td class="n" id="cts"></td></tr></tfoot></table></div>
+ <p class="note">En rojo: se consumió más de lo que justifican las ventas (pérdida). En verde: consumo menor al teórico, revisa si las porciones salen cortas.</p></div>`;
+ uVentas();
+}
+function uVentas(){
+ const T=totals();let tu=0;
+ S.recetas.forEach(r=>{const u=n(S.ventas[r.id]);tu+=u;const a=$('#vv-'+r.id);if(a){a.textContent=S_(u*neto(r));$('#vc-'+r.id).textContent=S_(u*costoRec(r))}});
+ if(!$('#vtu'))return;
+ $('#vtu').textContent=Q(tu);$('#vtv').textContent=S_(T.ventas);$('#vtc').textContent=S_(T.costoT);
+ T.filas.forEach(f=>{const id=f.i.id;if(!$('#cr-'+id))return;
+  $('#cr-'+id).textContent=Q(f.real);$('#ct-'+id).textContent=Q(f.t);
+  const c=f.ds>0.005?'bad':f.ds<-0.005?'ok':'';
+  const cu=$('#cu-'+id);cu.textContent=(f.du>0?'+':'')+Q(f.du);cu.className='n '+c;
+  const cs=$('#cs-'+id);cs.innerHTML=`<b>${f.ds>0?'+':''}${S_(f.ds)}</b>`;cs.className='n '+c});
+ $('#ctr').textContent=S_(T.costoR);$('#ctt').textContent=S_(T.costoT);
+ const d=T.costoR-T.costoT,e=$('#cts');e.textContent=(d>0?'+':'')+S_(d);e.className='n '+(d>0.005?'bad':'ok');
+}
+
+/* ---------- control ---------- */
+const R={resumen:rResumen,insumos:rInsumos,recetas:rRecetas,ventas:rVentas,usuarios:rUsuarios};
+const U={resumen:rResumen,insumos:uInsumos,recetas:uRecetas,ventas:uVentas,usuarios:()=>{}};
+function show(t){
+ if(!S)return;if(!R[t]||(t==='usuarios'&&ROLE!=='admin'))t='resumen';tab=t;
+ document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+ Object.keys(R).forEach(k=>$('#p-'+k).classList.toggle('hide',k!==t));
+ R[t]();applyRO();
+ if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);
+}
+function syncCfg(){$('#meta').value=n(S.meta);$('#igv').checked=!!S.igv}
+function changed(full){save();full?(R[tab](),applyRO()):U[tab]()}
+function keep(msg){snap=JSON.stringify(S);$('#toastMsg').textContent=msg;$('#toast').classList.add('show');clearTimeout(tTimer);tTimer=setTimeout(()=>$('#toast').classList.remove('show'),6000)}
+
+document.addEventListener('input',e=>{
+ const x=e.target;
+ if(x.id==='meta'){S.meta=n(x.value);return changed()}
+ if(x.dataset.t==='brand'){S.brand[x.dataset.f]=x.value;save();rBrand();return}
+ const t=x.dataset.t;if(!t||x.tagName==='SELECT')return;
+ const num=x.type==='number', v=num?n(x.value):x.value;
+ if(t==='ins'){const i=insById(x.dataset.id);if(i)i[x.dataset.f]=v}
+ else if(t==='rec'){const r=S.recetas.find(r=>r.id===S.sel);if(r)r[x.dataset.f]=v}
+ else if(t==='item'){const r=S.recetas.find(r=>r.id===S.sel);const it=r&&r.items[x.dataset.k];if(it)it.cant=v}
+ else if(t==='venta')S.ventas[x.dataset.id]=v;
+ else if(t==='inv'){(S.inv[x.dataset.id]||(S.inv[x.dataset.id]={}))[x.dataset.f]=v}
+ changed();
+});
+document.addEventListener('change',e=>{
+ const x=e.target;
+ if(x.id==='igv'){S.igv=x.checked;return changed(true)}
+ if(x.id==='selRec'){S.sel=x.value;return changed(true)}
+ if(x.id==='demoRol'){ROLE=x.value;ME.nombre=x.value==='admin'?'Renan Neira':x.value==='editor'?'Jefe de cocina':'Contabilidad';rWho();return show(tab)}
+ if(x.dataset.u==='rol'){const u=US.find(q=>q.id===x.dataset.id),prev=u.rol;x.disabled=true;api('actualizar',{id:u.id,rol:x.value}).then(()=>{u.rol=x.value;uMsg('uMsg',`${u.email} ahora es ${ROLES[u.rol]}.`)}).catch(err=>{x.value=prev;uMsg('uMsg',err.message,'bad')}).finally(()=>x.disabled=false);return}
+ if(x.id==='file-ins')return onFile(x,'ins');
+ if(x.id==='file-ven')return onFile(x,'ven');
+ if(x.id==='bL'&&x.files[0]){const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,200/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);S.brand.logo=c.toDataURL('image/png');save();rBrand()};im.src=fr.result};fr.readAsDataURL(x.files[0]);x.value='';return}
+ if(x.dataset.t==='item'&&x.dataset.f==='ins'){const r=S.recetas.find(r=>r.id===S.sel);r.items[x.dataset.k].ins=x.value;changed()}
+});
+document.addEventListener('click',e=>{
+ const ub=e.target.closest('button[data-u]');if(ub){e.preventDefault();return uAction(ub)}
+ const b=e.target.closest('[data-a],nav button,#reset,#undo,#brandBtn,#bLx');if(!b)return;
+ if(b.dataset.tab)return show(b.dataset.tab);
+ if(b.id==='brandBtn'){const p=$('#brandPanel'),o=p.classList.toggle('hide');b.setAttribute('aria-expanded',!o);if(!o)$('#bN').focus();return}
+ if(b.id==='bLx'){S.brand.logo='';save();return rBrand()}
+ if(b.id==='undo'){if(snap){S=JSON.parse(snap);snap=null;syncCfg();rBrand();changed(true)}$('#toast').classList.remove('show');return}
+ if(b.id==='reset'){keep('Datos de ejemplo restaurados');const br=S.brand;seed();S.brand=br;syncCfg();return changed(true)}
+ if(b.dataset.a==='tpl'){const k=b.dataset.k;try{navigator.clipboard.writeText(TPL[k]).then(()=>{const o=$('#msg-'+k);o.className='msg ok';o.textContent='Plantilla copiada: pégala en la celda A1 de una hoja de Excel, completa tus datos y guárdala.'},()=>{throw 0})}catch(err){}return}
+ if(b.dataset.a==='mkRec'){pend.forEach(p=>{const id=uid();S.recetas.push({id,nombre:p.nombre,precio:p.precio,items:[]});S.ventas[id]=p.u});const k=pend.length;pend=[];changed(true);const o=$('#msg-ven');o.className='msg ok';o.textContent=`${k} recetas nuevas creadas sin ingredientes. Complétalas en la pestaña Recetas.`;return}
+ const a=b.dataset.a, r=S.recetas.find(r=>r.id===S.sel);
+ if(a==='addIns'){const id=uid();S.insumos.push({id,nombre:'Nuevo insumo',unidad:'kg',costo:0,merma:0});S.inv[id]={ini:0,comp:0,fin:0};changed(true);const el=document.querySelector(`[data-id="${id}"][data-f="nombre"]`);if(el){el.focus();el.select()}}
+ else if(a==='delIns'){const i=insById(b.dataset.id);keep(`Insumo "${i.nombre}" eliminado`);S.insumos=S.insumos.filter(x=>x.id!==i.id);delete S.inv[i.id];S.recetas.forEach(x=>x.items=x.items.filter(it=>it.ins!==i.id));changed(true)}
+ else if(a==='addRec'){const id=uid();S.recetas.push({id,nombre:'Nueva receta',precio:0,items:[]});S.ventas[id]=0;S.sel=id;changed(true);const el=document.querySelector('[data-t="rec"][data-f="nombre"]');if(el){el.focus();el.select()}}
+ else if(a==='delRec'&&r){keep(`Receta "${r.nombre}" eliminada`);S.recetas=S.recetas.filter(x=>x.id!==r.id);delete S.ventas[r.id];S.sel=S.recetas[0]?.id;changed(true)}
+ else if(a==='addItem'&&r&&S.insumos.length){r.items.push({ins:S.insumos[0].id,cant:0});changed(true);const q=document.querySelectorAll('[data-t="item"][data-f="cant"]');q[q.length-1]?.focus()}
+ else if(a==='delItem'&&r){r.items.splice(+b.dataset.k,1);changed(true)}
+});
+document.addEventListener('submit',async e=>{
+ if(e.target.id!=='uNew')return;e.preventDefault();
+ const nombre=$('#nNom').value.trim(),email=$('#nMail').value.trim().toLowerCase(),password=$('#nPass').value,rol=$('#nRol').value,btn=$('#nBtn');
+ if(!nombre)return uMsg('nMsg','Escribe el nombre.','bad');
+ if(!okMail(email))return uMsg('nMsg','Escribe un correo válido.','bad');
+ if(password.length<8)return uMsg('nMsg','La contraseña debe tener al menos 8 caracteres.','bad');
+ btn.disabled=true;btn.textContent='Creando…';
+ try{await api('crear',{nombre,email,password,rol});e.target.reset();uMsg('nMsg',`Usuario creado: ${email} (${ROLES[rol]}). Entrégale su contraseña temporal.`);await loadUsers()}
+ catch(err){uMsg('nMsg',err.message,'bad')}
+ finally{btn.disabled=false;btn.textContent='Crear usuario'}
+});
+window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
+init();
+}
+</script>
+</body>
+</html>

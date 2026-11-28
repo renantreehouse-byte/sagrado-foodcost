@@ -1,4 +1,12 @@
-# Sagrado · Food Cost
+# Sagrado · Portal de gestión
+
+- `/` Portal de gestión (cuadros por área e indicadores)
+- `/foodcost/` Food Cost
+- `/inventario/` Registro de Inventario
+
+Todas usan el mismo inicio de sesión y los mismos perfiles de Supabase.
+
+## Food Cost
 
 Aplicación web de control de food cost para el restaurante Sagrado (Cusco).
 Es un solo archivo `index.html`. Los datos se guardan en **Supabase** y el sitio se publica en **Render** como *Static Site*.
